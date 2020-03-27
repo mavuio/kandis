@@ -15,5 +15,5 @@
                         'Elixir.Kandis.VisitorSessionStore',
                         'Elixir.Kandis.VisitorSessionSupervisor']},
               {registered,[]},
-              {vsn,"0.1.2"},
+              {vsn,"0.1.3"},
               {mod,{'Elixir.Kandis.Application',[]}}]}.
