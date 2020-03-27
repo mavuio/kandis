@@ -162,4 +162,30 @@ defmodule Kandis.KdHelpers do
       {:ok, dec} -> dec
     end
   end
+
+  def convert_keys(map, keys, converter_function)
+      when is_list(keys) and is_map(map) and is_function(converter_function, 1) do
+    Map.to_list(map)
+    |> Enum.map(fn {key, val} ->
+      if Enum.member?(keys, key) do
+        {converter_function.(key), val}
+      else
+        {key, val}
+      end
+    end)
+    |> Map.new()
+  end
+
+  def stringify_keys(map, _keys), do: map
+
+  def drop_keys_by_type(map, type) when is_map(map) and is_atom(type) do
+    map
+    |> Map.drop(get_keys_by_type(map, type))
+  end
+
+  def drop_atom_keys(val, _type), do: val
+
+  def get_keys_by_type(map, :atom), do: Map.keys(map) |> Enum.filter(&is_atom/1)
+  def get_keys_by_type(map, :binary), do: Map.keys(map) |> Enum.filter(&is_binary/1)
+  def get_keys_by_type(map, :integer), do: Map.keys(map) |> Enum.filter(&is_integer/1)
 end

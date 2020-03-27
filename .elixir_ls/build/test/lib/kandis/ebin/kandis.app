@@ -1,6 +1,6 @@
 {application,kandis,
-             [{applications,[kernel,stdlib,elixir,logger,accessible,myxql,
-                             ecto_sql]},
+             [{applications,[kernel,stdlib,elixir,logger,bertex,accessible,
+                             myxql,ecto_sql]},
               {description,"kandis"},
               {modules,['Elixir.Kandis','Elixir.Kandis.Application',
                         'Elixir.Kandis.Cart','Elixir.Kandis.Checkout',

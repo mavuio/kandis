@@ -79,12 +79,15 @@ defmodule Kandis.Cart do
     end
   end
 
+  def get_cart_record(sid) when is_integer(sid), do: get_cart_record(to_string(sid))
+
   def get_cart_record(%{items: items} = record) when is_map(record) and is_list(items), do: record
 
   def get_cart_record(_), do: get_empty_cart_record()
 
   def add_item(cart_or_sid, sku, item_values \\ %{}, amount \\ 1)
       when (is_binary(sku) or is_integer(sku)) and is_map(item_values) do
+    cart_or_sid = sanitize_cart_or_sid(cart_or_sid)
     cart_record = get_cart_record(cart_or_sid)
 
     find_item(cart_record, sku)
@@ -103,11 +106,27 @@ defmodule Kandis.Cart do
     |> store_cart_record_if_needed(cart_or_sid)
   end
 
+  def add_items(cart_or_sid, quantities)
+      when is_map(quantities) do
+    cart_or_sid = sanitize_cart_or_sid(cart_or_sid)
+
+    cart_record = get_cart_record(cart_or_sid)
+
+    quantities
+    |> Map.to_list()
+    |> Enum.reduce(cart_record, fn {sku, amount}, acc ->
+      add_item(acc, sku, %{}, amount)
+    end)
+    |> store_cart_record_if_needed(cart_or_sid)
+  end
+
   def find_item(%{items: items} = _cart_record, sku) when is_binary(sku) or is_integer(sku) do
     items |> Enum.find(nil, fn a -> a.sku == sku end)
   end
 
   def remove_item(cart_or_sid, sku) do
+    cart_or_sid = sanitize_cart_or_sid(cart_or_sid)
+
     get_cart_record(cart_or_sid)
     |> update_in([:items], fn items ->
       items |> Enum.filter(fn a -> a.sku !== sku end)
@@ -133,6 +152,8 @@ defmodule Kandis.Cart do
   end
 
   def change_quantity(cart_or_sid, sku, amount, mode \\ "inc") when is_integer(amount) do
+    cart_or_sid = sanitize_cart_or_sid(cart_or_sid)
+
     cart_record = get_cart_record(cart_or_sid)
 
     {_old_amount, result} =
@@ -170,6 +191,8 @@ defmodule Kandis.Cart do
 
   # adds a promo-code to the cart-record, does not check if promocode valid
   def add_promocode(cart_or_sid, promocode) when is_binary(promocode) do
+    cart_or_sid = sanitize_cart_or_sid(cart_or_sid)
+
     get_cart_record(cart_or_sid)
     |> update_in([Access.key(:promocodes, [])], fn codes ->
       Enum.find_index(codes, &(&1 == promocode))
@@ -183,6 +206,8 @@ defmodule Kandis.Cart do
 
   # removes promocode from list
   def remove_promocode(cart_or_sid, promocode) when is_binary(promocode) do
+    cart_or_sid = sanitize_cart_or_sid(cart_or_sid)
+
     get_cart_record(cart_or_sid)
     |> update_in([:promocodes], fn codes ->
       Enum.reject(codes, &(&1 == promocode))
@@ -191,7 +216,12 @@ defmodule Kandis.Cart do
   end
 
   def get_promocodes(cart_or_sid) do
+    cart_or_sid = sanitize_cart_or_sid(cart_or_sid)
+
     get_cart_record(cart_or_sid)
     |> Map.get(:promocodes)
   end
+
+  def sanitize_cart_or_sid(number) when is_integer(number), do: to_string(number)
+  def sanitize_cart_or_sid(val), do: val
 end
