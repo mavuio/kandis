@@ -55,8 +55,9 @@ defmodule Kandis.Checkout do
     |> Map.put(:lang, lang)
   end
 
-  def create_orderinfo(checkout_record) when is_map(checkout_record) do
+  def create_orderinfo(checkout_record, sid) when is_map(checkout_record) and is_binary(sid) do
     @local_checkout.create_orderinfo(checkout_record)
+    |> Map.put(:sid, sid)
   end
 
   def redirect_if_empty_cart(conn, params) do
