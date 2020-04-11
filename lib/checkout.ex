@@ -5,6 +5,8 @@ defmodule Kandis.Checkout do
   alias Kandis.VisitorSession
   @local_checkout Application.get_env(:kandis, :local_checkout)
 
+  def get_checkout_key(), do: "checkout"
+
   def process(conn, %{"step" => step} = params) when is_binary(step) do
     conn =
       conn
@@ -32,8 +34,40 @@ defmodule Kandis.Checkout do
   def process_callback(conn, _params), do: conn
 
   def get_template_name_for_step(step) do
-    "checkout_#{step}.html"
+    "checkoutA_#{step}.html"
   end
+
+  def get_empty_checkout_record() do
+    %{
+      delivery_type: nil,
+      payment_type: nil,
+      email: ""
+    }
+  end
+
+  def update(vid, clean_incoming_data) do
+    VisitorSession.merge_into(vid, get_checkout_key(), clean_incoming_data)
+  end
+
+  def get_checkout_record(vid) when is_binary(vid) do
+    VisitorSession.get_value(vid, get_checkout_key())
+    |> case do
+      nil ->
+        rec = get_empty_checkout_record()
+        VisitorSession.set_value(vid, get_checkout_key(), rec)
+        rec
+
+      %{email: _email} = record ->
+        record
+    end
+  end
+
+  def get_checkout_record(vid) when is_integer(vid), do: get_checkout_record(to_string(vid))
+
+  def get_checkout_record(%{email: email} = record) when is_map(record) and is_binary(email),
+    do: record
+
+  def get_checkout_record(_), do: get_empty_checkout_record()
 
   def get_payment_module_name(provider) do
     String.to_atom(
@@ -53,6 +87,10 @@ defmodule Kandis.Checkout do
 
   def redirect_to_default_step(conn, params) do
     @local_checkout.redirect_to_default_step(conn, params)
+  end
+
+  def get_link_for_step(context, current_step) when is_map(context) do
+    @local_checkout.get_link_for_step(context, current_step)
   end
 
   def get_next_step_link(context, current_step) when is_map(context) do
@@ -79,21 +117,26 @@ defmodule Kandis.Checkout do
     |> Map.put(:sid, sid)
   end
 
-  def redirect_if_empty_cart(conn, params) do
-    if Cart.get_cart_count(params[:current_userid]) > 0 do
+  def redirect_if_empty_cart(conn, vid, %{} = params, [] = opts \\ []) do
+    if Cart.get_cart_count(vid) > 0 do
       conn
     else
       conn
-      |> Phoenix.Controller.put_flash(:warning, "checkout was aborted because cart is empty")
-      |> Phoenix.Controller.redirect(
-        to: EvablutWeb.Router.Helpers.cart_path(conn, :step, params["lang"] || "en")
+      |> Phoenix.Controller.put_flash(
+        :warning,
+        opts[:msg] || "checkout was aborted because cart is empty"
       )
+      |> Phoenix.Controller.redirect(to: get_cart_basepath(params))
       |> Plug.Conn.halt()
     end
   end
 
+  def get_cart_basepath(params \\ %{}) when is_map(params) do
+    @local_checkout.get_cart_basepath(params)
+  end
+
   def redirect_if_empty_email(conn, params) do
-    checkout_record = VisitorSession.get_value(params[:current_userid], "checkout", %{})
+    checkout_record = VisitorSession.get_value(params[:vid], "checkout", %{})
 
     if checkout_record[:email] do
       conn

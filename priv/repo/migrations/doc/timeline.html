@@ -1,0 +1,166 @@
+<html>
+
+<head>
+    <script src='pinker.js'></script>
+    <link rel="stylesheet" href="./docstyle.css">
+</head>
+
+<body>
+    <pre id='Source01'>
+
+
+        Layout:
+            [{opencart}OPEN CART][{review}STEP REVIEW][{freeze}STEP freeze]
+            [{payment}STEP PAYMENT][{finished}STEP PAYMENT FINISHED][{callback}STEP PAYMENT CALLBACK]
+
+
+
+        {opencart}:
+            Layout:
+                [{sessiondata_opencart}sessiondata]
+        {sessiondata_opencart}:  
+            Layout:
+                    [cart][checkout_record]
+
+        {review}:
+            Layout:
+                [{sessiondata_review}sessiondata][orderinfo]
+                [orderlines]...[orderhtml]
+            Relate:
+                {sessiondata_review}.[cart]->[orderlines] :"Kandis.Cart":
+                {sessiondata_review}.[checkout_record]->[orderinfo] "Kandis.Checkout":
+                [orderlines]->[orderhtml]
+                [orderinfo]->[orderhtml]
+        {sessiondata_review}:  
+            Layout:
+                    [cart][checkout_record]
+        {orderlines_review}:  
+            Layout:
+                    [cart][checkout_record]
+
+
+        {freeze}:
+            Layout:
+                [{sessiondata_freeze}sessiondata]
+                [orderlines][orderinfo]
+                [{new_order_freeze}New Order][{old_order_freeze}Old Order w. status pending]
+            Define:
+                ➜ redirect to step_payment
+            Relate:
+                {sessiondata_freeze}.[cart]->[orderlines]
+                {sessiondata_freeze}.[checkout_record]->[orderinfo]
+                [orderlines]->{new_order_freeze}
+                [orderinfo]->{new_order_freeze}
+
+        {sessiondata_freeze}:  
+            Layout:
+                    [cart][checkout_record]
+        {orderlines_freeze}:  
+            Layout:
+                    [cart][checkout_record]
+        {new_order_freeze}:
+            Define:   
+                - new order_nr
+                - sid
+                - status: pending
+            Layout:
+                    [cart][checkout_record]
+         {old_order_freeze}:
+            Define:   
+                - old order_nr
+                - sid
+                - status: cancelled
+            Layout:
+                    [cart][checkout_record]
+
+
+        {payment}:
+            Layout:
+                [{order_record_payment}Order]
+                [{payment_data_payment}Payment-Provider-Data]
+                [{send_user_to_provider}➜ send user to payment-provider]
+            Relate:
+                {order_record_payment}->{payment_data_payment}: "create new"
+                {payment_data_payment}->{send_user_to_provider}: "button click"
+
+        {send_user_to_provider}:
+            Layout:
+            Define:
+
+        {order_record_payment}:  
+            Layout:
+                [orderlines][orderinfo]
+
+        {payment_data_payment}:  
+            Layout:
+            Define:
+                - payment_url
+                - transaction_id
+
+        {finished}:
+            Layout:
+                [{order_record_finished}order_record]
+                [orderhtml]
+            Relate:
+                {order_record_finished}.[cart]->[orderlines]
+                {order_record_finished}.[checkout_record]->[orderinfo]
+                 {order_record_finished}.[orderlines]->[orderhtml]
+                 {order_record_finished}.[orderinfo]->[orderhtml]
+                 {order_record_finished}->[orderhtml]
+
+                 
+        {order_record_finished}:  
+            Layout:
+                    [orderlines][orderinfo]
+        {orderlines_finished}:  
+            Layout:
+                    [cart][checkout_record]
+
+
+       {callback}:
+            Layout:
+                [{order_record_callback}order_record]
+                [{order_record_callback_after}order_record]
+                [{invoice_callback}invoice-PDF][orderhtml]
+                [{email_callback}emails]
+            Relate:
+                {order_record_callback_after}->{invoice_callback}
+                {order_record_callback_after}->[orderhtml]
+                {order_record_callback}->{order_record_callback_after}
+                {invoice_callback}->{email_callback}
+                [orderhtml]->{email_callback}
+        {order_record_callback}:  
+            Layout:
+                    [orderlines][orderinfo]
+        {order_record_callback_after}:  
+            Layout:
+                    [orderlines]...[orderinfo]
+                    [orderhtml_cache][payment-provider-data]
+            Define:
+                - status: paid
+                - new invoice_nr
+        {invoice_callback}:
+            Layout:
+            Define:
+        {email_callback}:
+            Layout:
+            Define:
+                ➜ send emails
+
+    </pre>
+    <canvas id='Canvas01'></canvas>
+    <script>
+        var canvas = document.getElementById("Canvas01");
+        var source = document.getElementById("Source01").innerHTML;
+        var options = {
+            fontFamily: 'arial',
+            useSmartArrows: true,
+            shadeColor: "#eee",
+            lineColor: "#888",
+
+        };
+        pinker.draw(canvas, source, options);
+    </script>
+</body>
+
+</html>

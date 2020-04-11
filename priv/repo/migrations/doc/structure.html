@@ -1,0 +1,146 @@
+<html>
+
+<head>
+    <script src='pinker.js'></script>
+    <link rel="stylesheet" href="./docstyle.css">
+</head>
+
+<body>
+    <pre id='Source01'>
+
+
+
+
+        Layout:
+        [{VS}Kandis.VisitorSession]
+        [{CART}Kandis.Cart][{LocalCheckout}Shop.LocalCheckout][{CHECKOUT}Kandis.Checkout]
+        [{LocalOrder}Shop.LocalOrder][{ORDER}Kandis.Order][{orderrecord}Shop.OrderRecord]
+        
+        Relate:
+        {LocalOrder}<->{ORDER}
+        {LocalCheckout}<->{CHECKOUT}
+        {LocalCheckout}<->{ORDER}
+        {LocalCheckout}<->{CART}
+        {VS}:
+            Define:
+                SID: XXXX-XXXX...
+            Layout:
+            [{vs_ca}"cart"]...[{vs_co}"checkout"]
+            Relate:
+
+        {CART}:
+            Layout:
+            [{get_cart_record}get_cart_record()]
+            [{get_augmented_cart_record}get_augmented_cart_record()]
+            Relate:
+            {vs_ca}->{get_cart_record}
+            {get_cart_record}->{get_augmented_cart_record}
+            {get_augmented_cart_record}->{create_ordercart}
+
+        {CHECKOUT}:
+            Layout:
+            [{create_ordercart}create_ordercart()][{get_checkout_record}get_checkout_record()]
+            Relate:
+             {get_checkout_record}->{create_orderinfo}
+             {create_ordercart}->{create_orderlines}
+             {vs_co}->{get_checkout_record}
+
+        {ORDER}:
+            Layout:
+            [{create_orderlines}create_orderlines( ordercart, orderinfo)][{create_orderinfo}create_orderinfo( checkout_record)]
+            [{create_new_order}create_new_order()]...[{create_orderhtml}create_orderhtml(orderlines, orderinfo, order_record)]
+
+            Relate:
+             {create_orderlines}->{create_new_order}
+             {create_orderlines}*{orderlines}
+             {create_orderinfo}->{create_orderlines}
+             {create_orderinfo}->{create_new_order}
+             {create_orderinfo}*{orderinfo}
+             {create_orderhtml}*{invoicehtml}
+             {create_new_order}->{orderrecord}
+
+        {LocalOrder}:
+           Layout: 
+           Define:
+             • create_lineitem_from_cart_item()
+             • apply_delivery_cost()
+
+        {LocalCheckout}:
+           Layout: 
+           Define:
+            checkout_steps & logic
+        [Order]:
+        Layout:
+       
+        
+        {orderrecord}:
+  
+        Layout:
+            [{orderlines}orderlines][{orderinfo}orderinfo]
+            [{invoicehtml}invoicehtml_archive]
+        Define:
+            • id
+            • order_nr
+            • invoice_nr
+
+        {orderinfo}:
+            Define:
+                • sid
+                • email
+                • pickup
+                • delivery_type
+                • payment_type
+                • first_name
+                • last_name
+                • company
+                • phone
+                • street
+                • city
+                • zip
+                • country
+                |
+                • has_shipping_address
+                • shipping_first_name
+                • shipping_last_name
+                • shipping_company
+                • shipping_street
+                • shipping_city
+                • shipping_zip
+                • shipping_country
+
+        {orderlines}:
+            Define:
+             • lang
+             • lineitems
+             • stats
+             •   total_amount
+             •   total_price
+             •   total_product_price
+             •   taxrates
+             •     gross | net | tax
+
+
+
+
+
+
+        
+        
+        
+    </pre>
+    <canvas id='Canvas01'></canvas>
+    <script>
+        var canvas = document.getElementById("Canvas01");
+        var source = document.getElementById("Source01").innerHTML;
+        var options = {
+            fontFamily: 'arial',
+            useSmartArrows: true,
+            shadeColor:"#eee",
+            lineColor:"#888",
+
+        };
+        pinker.draw(canvas, source, options);
+    </script>
+</body>
+
+</html>
