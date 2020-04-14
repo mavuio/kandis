@@ -1,20 +1,70 @@
 defmodule Kandis.Checkout.LiveViewStep do
   @moduledoc "Boilerplate for Live-View Step"
 
-  defmacro __using__(_) do
-    quote do
-      use Phoenix.LiveView
+  @callback process(Plug.Conn.t(), map()) :: Plug.Conn.t()
 
-      def render(assigns) do
+  @callback changeset_for_this_step(
+              Ecto.Schema.t()
+              | Ecto.Changeset.t()
+              | {Ecto.Changeset.data(), Ecto.Changeset.types()},
+              map()
+            ) ::
+              Ecto.Schema.t()
+              | Ecto.Changeset.t()
+              | {Ecto.Changeset.data(), Ecto.Changeset.types()}
+
+  @optional_callbacks changeset_for_this_step: 2, process: 2
+
+  # https://stackoverflow.com/questions/39490972/adding-default-handle-info-in-using-macro
+  defmacro(__using__(_)) do
+    quote do
+      @checkout_key "checkout"
+      @behaviour Kandis.Checkout.LiveViewStep
+      use Phoenix.LiveView
+      @before_compile Kandis.Checkout.LiveViewStep
+
+      def super_render(assigns) do
         Phoenix.View.render(@pageview, "checkout_#{@step}.html", assigns)
       end
 
-      def handle_event("validate", %{"step_data" => incoming_data}, socket) do
+      def super_handle_event("validate", %{"step_data" => incoming_data}, socket) do
         changeset =
           changeset_for_this_step(incoming_data, socket.assigns)
           |> Map.put(:action, :insert)
 
         {:noreply, assign(socket, changeset: changeset)}
+      end
+
+      def super_handle_event("save", %{"step_data" => incoming_data}, socket) do
+        save_step_data(incoming_data, socket)
+      end
+
+      # reload page if checkout-data changed
+      def super_handle_info({:visitor_session, [key, :updated], _new_data}, socket)
+          when key in [@checkout_key, :all] do
+        {:noreply,
+         socket |> redirect(to: Kandis.Checkout.get_link_for_step(socket.assigns, @step))}
+      end
+
+      # ignore other types of messages
+      def super_handle_info(msg, socket) do
+        {:noreply, socket}
+      end
+
+      def save_step_data(incoming_data, socket) do
+        changeset_for_this_step(incoming_data, socket.assigns)
+        |> Ecto.Changeset.apply_action(:insert)
+        |> case do
+          {:ok, clean_incoming_data} ->
+            Kandis.Checkout.update(socket.assigns.vid, clean_incoming_data)
+
+            {:noreply,
+             socket
+             |> redirect(to: Kandis.Checkout.get_next_step_link(socket.assigns, @step))}
+
+          {:error, %Ecto.Changeset{} = changeset} ->
+            {:noreply, assign(socket, changeset: changeset)}
+        end
       end
 
       def process(conn, params) do
@@ -23,12 +73,29 @@ defmodule Kandis.Checkout.LiveViewStep do
         |> Kandis.Checkout.redirect_if_empty_cart(params[:visit_id], params)
       end
 
-      def handle_info({:visitor_session, [_, :updated], _new_data}, socket) do
-        {:noreply,
-         socket |> redirect(to: Kandis.Checkout.get_link_for_step(socket.assigns, @step))}
+      def changeset_for_this_step(values, context) do
+        data = %{}
+        types = %{}
+
+        {data, types}
+        |> Ecto.Changeset.cast(values, Map.keys(types))
       end
 
-      # handle unknown events
+      defoverridable Kandis.Checkout.LiveViewStep
+    end
+  end
+
+  # default clauses at and of code:
+  defmacro __before_compile__(_) do
+    quote do
+      @impl Phoenix.LiveView
+      def render(assigns), do: super_render(assigns)
+
+      @impl Phoenix.LiveView
+      def handle_event(event, msg, socket), do: super_handle_event(event, msg, socket)
+
+      @impl Phoenix.LiveView
+      def handle_info(msg, socket), do: super_handle_info(msg, socket)
     end
   end
 end

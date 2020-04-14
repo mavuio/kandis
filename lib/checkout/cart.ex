@@ -1,6 +1,5 @@
 defmodule Kandis.Cart do
   alias Kandis.VisitorSession
-  alias EvablutWeb.Shop.LocalCart
 
   alias Kandis.LiveUpdates
 

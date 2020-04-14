@@ -75,39 +75,45 @@ defmodule Kandis.VisitorSessionGenServer do
     {:reply, response, state}
   end
 
-  def handle_call({:set_value, key, value}, _from, state) do
+  def handle_call({:set_value, key, value}, _from, old_state) do
     # value |> IO.inspect(label: "mwuits-debug 2020-03-15_12:05 visitor-session SET ")
 
     state =
       put_in(
-        state,
+        old_state,
         [
           :data
-          # create emoty map s default
+          # create empty map s default
           | Enum.map(get_key_parts(key), &Access.key(&1, %{}))
         ],
         value
       )
 
-    LiveUpdates.notify_live_view(
-      state.sid,
-      {:visitor_session, [key, :updated], value}
-    )
+    if(state !== old_state) do
+      LiveUpdates.notify_live_view(
+        state.sid,
+        {:visitor_session, [key, :updated], value}
+      )
 
-    save_data_to_db(state.sid, state.data)
+      save_data_to_db(state.sid, state.data)
+    end
+
     response = :ok
     {:reply, response, state}
   end
 
-  def handle_call({:set_data, data}, _from, state) do
-    state = put_in(state, [:data], data)
+  def handle_call({:set_data, data}, _from, old_state) do
+    state = put_in(old_state, [:data], data)
 
-    LiveUpdates.notify_live_view(
-      state.sid,
-      {:visitor_session, [:all, :updated], nil}
-    )
+    if(state !== old_state) do
+      LiveUpdates.notify_live_view(
+        state.sid,
+        {:visitor_session, [:all, :updated], nil}
+      )
 
-    save_data_to_db(state.sid, state.data)
+      save_data_to_db(state.sid, state.data)
+    end
+
     response = :ok
     {:reply, response, state}
   end

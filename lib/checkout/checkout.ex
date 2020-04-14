@@ -2,6 +2,7 @@ defmodule Kandis.Checkout do
   @moduledoc false
 
   alias Kandis.Cart
+  alias Kandis.Order
   alias Kandis.VisitorSession
   @local_checkout Application.get_env(:kandis, :local_checkout)
 
@@ -135,21 +136,18 @@ defmodule Kandis.Checkout do
     @local_checkout.get_cart_basepath(params)
   end
 
-  def redirect_if_empty_email(conn, params) do
-    checkout_record = VisitorSession.get_value(params[:vid], "checkout", %{})
-
-    if checkout_record[:email] do
-      conn
-    else
-      conn
-      |> Phoenix.Controller.redirect(
-        to: EvablutWeb.Router.Helpers.checkout_path(conn, :index, params["lang"] || "en")
-      )
-      |> Plug.Conn.halt()
-    end
-  end
-
   def get_shipping_country(orderinfo) when is_map(orderinfo) do
     @local_checkout.get_shipping_country(orderinfo)
+  end
+
+  def preview_order(vid, context) when is_binary(vid) do
+    cart = Cart.get_augmented_cart_record(vid, context)
+    checkout_record = get_checkout_record(vid)
+
+    ordercart = create_ordercart(cart, context["lang"])
+    orderinfo = create_orderinfo(checkout_record, vid)
+    orderdata = Order.create_orderdata(ordercart, orderinfo)
+    orderhtml = Order.create_orderhtml(orderdata, orderinfo)
+    {orderdata, orderinfo, orderhtml}
   end
 end
