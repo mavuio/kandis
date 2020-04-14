@@ -13,7 +13,7 @@ defmodule Kandis.Cart do
 
   "
 
-  def get_cart_key(), do: "cart"
+  def get_visitorsession_key(), do: "cart"
 
   def create_cart_item(sku, item_values, amount \\ 1)
 
@@ -48,7 +48,7 @@ defmodule Kandis.Cart do
 
   def store_cart_record_if_needed(%{items: _items} = cart_record, cart_or_sid) do
     if(is_sid?(cart_or_sid)) do
-      VisitorSession.set_value(cart_or_sid, get_cart_key(), cart_record)
+      VisitorSession.set_value(cart_or_sid, get_visitorsession_key(), cart_record)
     end
 
     cart_record
@@ -68,7 +68,7 @@ defmodule Kandis.Cart do
   end
 
   def get_cart_record(sid) when is_binary(sid) do
-    VisitorSession.get_value(sid, get_cart_key())
+    VisitorSession.get_value(sid, get_visitorsession_key())
     |> case do
       nil ->
         get_empty_cart_record()

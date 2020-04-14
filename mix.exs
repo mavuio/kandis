@@ -4,7 +4,7 @@ defmodule Kandis.MixProject do
   def project do
     [
       app: :kandis,
-      version: "0.1.5",
+      version: "0.2.0",
       start_permanent: Mix.env() == :prod,
       deps: deps()
     ]
@@ -25,8 +25,8 @@ defmodule Kandis.MixProject do
       {:myxql, "~> 0.3.0"},
       {:accessible, "~> 0.2.1"},
       {:bertex, "~> 1.3"},
-      {:phoenix, "~> 1.4.0"}
-
+      {:phoenix, "~> 1.4.0"},
+      {:struct_access, "~> 1.1.2"}
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
     ]

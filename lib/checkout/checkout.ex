@@ -6,7 +6,7 @@ defmodule Kandis.Checkout do
   alias Kandis.VisitorSession
   @local_checkout Application.get_env(:kandis, :local_checkout)
 
-  def get_checkout_key(), do: "checkout"
+  def get_visitorsession_key(), do: "checkout"
 
   def process(conn, %{"step" => step} = params) when is_binary(step) do
     conn =
@@ -47,15 +47,15 @@ defmodule Kandis.Checkout do
   end
 
   def update(vid, clean_incoming_data) do
-    VisitorSession.merge_into(vid, get_checkout_key(), clean_incoming_data)
+    VisitorSession.merge_into(vid, get_visitorsession_key(), clean_incoming_data)
   end
 
   def get_checkout_record(vid) when is_binary(vid) do
-    VisitorSession.get_value(vid, get_checkout_key())
+    VisitorSession.get_value(vid, get_visitorsession_key())
     |> case do
       nil ->
         rec = get_empty_checkout_record()
-        VisitorSession.set_value(vid, get_checkout_key(), rec)
+        VisitorSession.set_value(vid, get_visitorsession_key(), rec)
         rec
 
       %{email: _email} = record ->
@@ -113,9 +113,9 @@ defmodule Kandis.Checkout do
     |> Map.put(:lang, lang)
   end
 
-  def create_orderinfo(checkout_record, sid) when is_map(checkout_record) and is_binary(sid) do
+  def create_orderinfo(checkout_record, vid) when is_map(checkout_record) and is_binary(vid) do
     @local_checkout.create_orderinfo(checkout_record)
-    |> Map.put(:sid, sid)
+    |> Map.put(:vid, vid)
   end
 
   def redirect_if_empty_cart(conn, vid, %{} = params, [] = opts \\ []) do

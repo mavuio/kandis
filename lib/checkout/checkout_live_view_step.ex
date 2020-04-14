@@ -42,9 +42,14 @@ defmodule Kandis.Checkout.LiveViewStep do
       # reload page if checkout-data changed
       def super_handle_info({:visitor_session, [key, :updated], _new_data}, socket)
           when key in [@checkout_key, :all] do
-        {:noreply,
-         socket |> redirect(to: Kandis.Checkout.get_link_for_step(socket.assigns, @step))}
+        socket |> reload_current_page()
       end
+
+      def reload_current_page(socket),
+        do:
+          {:noreply,
+           socket
+           |> redirect(to: Kandis.Checkout.get_link_for_step(socket.assigns, @step))}
 
       # ignore other types of messages
       def super_handle_info(msg, socket) do
