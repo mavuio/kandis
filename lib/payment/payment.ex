@@ -23,7 +23,8 @@ defmodule Kandis.Payment do
   def create_payment_attempt(providername, orderdata, orderinfo) do
     amount = orderdata.stats.total_price
     curr = default_currency()
-    vid = orderinfo.vid
+
+    # vid = orderinfo.vid
 
     apply(get_module_name(providername), :create_payment_attempt, [
       {amount, curr},

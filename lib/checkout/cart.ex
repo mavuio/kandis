@@ -42,9 +42,12 @@ defmodule Kandis.Cart do
   def get_empty_cart_record() do
     %{
       items: [],
-      promocodes: []
+      promocodes: [],
+      cart_id: generate_new_cart_id()
     }
   end
+
+  def generate_new_cart_id(), do: Pow.UUID.generate()
 
   def store_cart_record_if_needed(%{items: _items} = cart_record, cart_or_sid) do
     if(is_sid?(cart_or_sid)) do
@@ -62,7 +65,7 @@ defmodule Kandis.Cart do
     end
   end
 
-  def get_augmented_cart_record(sid, params) do
+  def get_augmented_cart_record(sid, params \\ %{}) do
     get_cart_record(sid)
     |> @local_cart.augment_cart(params)
   end

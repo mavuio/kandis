@@ -35,7 +35,7 @@ defmodule Kandis.Checkout do
   def process_callback(conn, _params), do: conn
 
   def get_template_name_for_step(step) do
-    "checkoutA_#{step}.html"
+    "checkout_#{step}.html"
   end
 
   def get_empty_checkout_record() do
@@ -142,12 +142,23 @@ defmodule Kandis.Checkout do
 
   def preview_order(vid, context) when is_binary(vid) do
     cart = Cart.get_augmented_cart_record(vid, context)
+    checkout_record = Kandis.Checkout.get_checkout_record(vid)
+
+    ordercart = Kandis.Checkout.create_ordercart(cart, context["lang"])
+    orderinfo = Kandis.Checkout.create_orderinfo(checkout_record, vid)
+    orderdata = Order.create_orderdata(ordercart, orderinfo)
+    orderhtml = Order.create_orderhtml(orderdata, orderinfo)
+    {orderdata, orderinfo, orderhtml}
+  end
+
+  def create_order_from_checkout(vid, context) when is_binary(vid) do
+    cart = Cart.get_augmented_cart_record(vid, context)
     checkout_record = get_checkout_record(vid)
 
     ordercart = create_ordercart(cart, context["lang"])
     orderinfo = create_orderinfo(checkout_record, vid)
     orderdata = Order.create_orderdata(ordercart, orderinfo)
-    orderhtml = Order.create_orderhtml(orderdata, orderinfo)
-    {orderdata, orderinfo, orderhtml}
+
+    Kandis.Order.create_new_order(orderdata, orderinfo)
   end
 end

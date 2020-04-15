@@ -7,11 +7,13 @@ defmodule Kandis.PaymentAttempt do
 
   @enforce_keys [:provider]
   defstruct provider: nil,
-            data: nil
+            data: nil,
+            payment_url: nil
 
   @typedoc "payment-attempt"
   @type t() :: %__MODULE__{
           provider: String.t(),
-          data: map() | nil
+          data: map() | nil,
+          payment_url: String.t() | nil
         }
 end

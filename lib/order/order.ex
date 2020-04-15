@@ -1,7 +1,7 @@
 defmodule Kandis.Order do
   alias Kandis.Checkout
   import Kandis.KdHelpers
-  import Ecto.Query, warn: false
+  require Ecto.Query
 
   @invoice_nr_prefix Application.get_env(:kandis, :invoice_nr_prefix)
   @invoice_nr_testprefix Application.get_env(:kandis, :invoice_nr_testprefix)
@@ -10,7 +10,7 @@ defmodule Kandis.Order do
   @order_record Application.get_env(:kandis, :order_record)
 
   @server_view Application.get_env(:kandis, :server_view)
-  @repo Application.get_env(:kandis, :server_view)
+  @repo Application.get_env(:kandis, :repo)
   @translation_function Application.get_env(:kandis, :translation_function)
 
   @callback create_lineitem_from_cart_item(map()) :: map()
@@ -36,7 +36,8 @@ defmodule Kandis.Order do
     %{
       lineitems: [],
       stats: %{},
-      lang: ordercart.lang
+      lang: ordercart.lang,
+      cart_id: ordercart.cart_id
     }
     |> add_lineitems_from_cart(ordercart)
     |> update_stats(orderinfo)
@@ -205,6 +206,14 @@ defmodule Kandis.Order do
     |> atomize_maps()
   end
 
+  def get_by_cart_id(cart_id) when is_binary(cart_id) do
+    @order_record
+    |> Ecto.Query.where([o], o.cart_id == ^cart_id)
+    |> Ecto.Query.where([o], o.state != "cancelled")
+    |> @repo.one()
+    |> atomize_maps()
+  end
+
   def get_by_order_nr(order_nr) when is_binary(order_nr) do
     @repo.get_by(@order_record, order_nr: order_nr)
     |> atomize_maps()
@@ -238,10 +247,19 @@ defmodule Kandis.Order do
     |> case do
       {:ok, {:ok, %_{} = order}} ->
         order
-        |> decrement_stock_for_order()
 
       _ ->
         nil
+    end
+  end
+
+  def set_state(any_id, new_status) do
+    get_by_any_id(any_id)
+    |> @order_record.changeset(%{state: new_status})
+    |> @repo.update()
+    |> case do
+      {:ok, rec} -> rec
+      {:error, err} -> raise "cannot set state on #{any_id}"
     end
   end
 
@@ -258,6 +276,7 @@ defmodule Kandis.Order do
     %{
       orderinfo: orderinfo,
       orderdata: orderdata,
+      cart_id: orderdata.cart_id,
       order_nr: create_new_order_nr(is_testorder?(orderdata, orderinfo)),
       state: "created",
       user_id: orderinfo[:user_id],
@@ -323,8 +342,8 @@ defmodule Kandis.Order do
     id = params["id"]
 
     @order_record
-    |> pipe_when(id, where([o], o.id == ^id))
-    |> order_by([o], desc: o.id)
+    |> pipe_when(id, Ecto.Query.where([o], o.id == ^id))
+    |> Ecto.Query.order_by([o], desc: o.id)
   end
 
   def get_orders(params) do
@@ -334,6 +353,15 @@ defmodule Kandis.Order do
 
   def get_orderhtml(%_{} = order, mode \\ "order") do
     create_orderhtml(order.orderdata, order.orderinfo, order, mode)
+  end
+
+  def get_current_order_for_vid(vid) when is_binary(vid) do
+    with cart = %{cart_id: cart_id} <- Kandis.Cart.get_cart_record(vid),
+         %_{} = order <- get_by_cart_id(cart_id) do
+      order
+    else
+      err -> nil
+    end
   end
 
   # invoice functions
@@ -410,8 +438,16 @@ defmodule Kandis.Order do
     invlike = "#{prefix}%"
 
     @order_record
-    |> where([o], like(o.invoice_nr, ^invlike))
+    |> Ecto.Query.where([o], like(o.invoice_nr, ^invlike))
     |> @repo.aggregate(:max, :invoice_nr)
     |> if_nil("#{prefix}#{10000}")
+  end
+
+  def cancel_orders_for_cart_id(cart_id) when is_binary(cart_id) do
+    @order_record
+    |> Ecto.Query.where([o], o.cart_id == ^cart_id)
+    |> Ecto.Query.where([o], o.state == "w4payment")
+    |> Ecto.Query.update(set: [state: "cancelled"])
+    |> @repo.update_all([])
   end
 end
