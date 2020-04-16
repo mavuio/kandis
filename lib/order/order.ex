@@ -1,5 +1,6 @@
 defmodule Kandis.Order do
   alias Kandis.Checkout
+  alias Kandis.Pdfgenerator
   import Kandis.KdHelpers
   require Ecto.Query
 
@@ -259,7 +260,7 @@ defmodule Kandis.Order do
     |> @repo.update()
     |> case do
       {:ok, rec} -> rec
-      {:error, err} -> raise "cannot set state on #{any_id}"
+      {:error, _err} -> raise "cannot set state on #{any_id}"
     end
   end
 
@@ -356,11 +357,11 @@ defmodule Kandis.Order do
   end
 
   def get_current_order_for_vid(vid) when is_binary(vid) do
-    with cart = %{cart_id: cart_id} <- Kandis.Cart.get_cart_record(vid),
+    with _cart = %{cart_id: cart_id} <- Kandis.Cart.get_cart_record(vid),
          %_{} = order <- get_by_cart_id(cart_id) do
       order
     else
-      err -> nil
+      _err -> nil
     end
   end
 
@@ -376,8 +377,8 @@ defmodule Kandis.Order do
       {:ok, invoice_nr} ->
         Pdfgenerator.get_pdf_file_for_invoice_nr(invoice_nr, params)
 
-      {:error, error} ->
-        raise "get_invoice_url received error:" <> inspect(error)
+        # {:error, error} ->
+        #   raise "get_invoice_url received error:" <> inspect(error)
     end
   end
 
@@ -404,7 +405,7 @@ defmodule Kandis.Order do
   def create_and_assign_new_invoice_nr_for_order(order_nr, tries \\ 0)
 
   def create_and_assign_new_invoice_nr_for_order(order_nr, tries) when tries > 100 do
-    raise "could not create new invoice nr for order #{order_nr} after #{tries} tries "
+    {:error, "could not create new invoice nr for order #{order_nr} after #{tries} tries "}
   end
 
   def create_and_assign_new_invoice_nr_for_order(order_nr, tries)
@@ -419,10 +420,10 @@ defmodule Kandis.Order do
     new_invoice_nr = create_new_invoice_nr(inv_prefix)
 
     %{order_nr: order_nr, invoice_nr: new_invoice_nr}
-    |> update()
+    |> Kandis.Order.update()
     |> case do
       {:ok, record} ->
-        {:ok, record.invoice_nr}
+        {:ok, record[:invoice_nr]}
 
       {:error,
        %Ecto.Changeset{errors: [invoice_nr: {_, [constraint: :unique, constraint_name: _]}]}} ->

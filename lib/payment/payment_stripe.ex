@@ -2,21 +2,25 @@ defmodule Kandis.Payment.Stripe do
   @behaviour Kandis.Payment
 
   @providername "stripe"
-  def create_payment_attempt({amount, curr}, orderdata, orderinfo) do
+  def create_payment_attempt({amount, curr}, order_nr, _orderdata, orderinfo) do
     #  total_price = orderdata.stats.total_price
 
     data = update_or_create_intent({amount, curr}, get_stripe_payload(orderinfo), nil)
 
     %Kandis.PaymentAttempt{
       provider: @providername,
-      data: data
+      data: data,
+      id: data[:id],
+      order_nr: order_nr
     }
   end
+
 
   def update_payment_attempt_if_needed(
         %Kandis.PaymentAttempt{} = attempt,
         {amount, curr},
-        orderdata,
+        order_nr,
+        _orderdata,
         orderinfo
       ) do
     data =
@@ -24,7 +28,9 @@ defmodule Kandis.Payment.Stripe do
 
     %Kandis.PaymentAttempt{
       provider: @providername,
-      data: data
+      data: data,
+      id: data[:id],
+      order_nr: order_nr
     }
   end
 

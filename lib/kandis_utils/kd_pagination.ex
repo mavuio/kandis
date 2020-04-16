@@ -3,7 +3,7 @@
 # see also https://gist.github.com/AlchemistCamp/f6bb3c3e1ef81612e6abebe6ae9f4988
 defmodule Kandis.KdPagination do
   import Ecto.Query
-  @repo Application.get_env(:kandis, :server_view)
+  @repo Application.get_env(:kandis, :repo)
 
   #
   # ## Example
@@ -40,7 +40,7 @@ defmodule Kandis.KdPagination do
 
   def page(query, page, per_page: per_page) do
     results = limit_query(query, page, per_page: per_page) |> @repo.all()
-    total_count = @repo.one(from t in subquery(query), select: count("*"))
+    total_count = @repo.one(from(t in subquery(query), select: count("*")))
     page({results, total_count}, page, per_page: per_page)
   end
 

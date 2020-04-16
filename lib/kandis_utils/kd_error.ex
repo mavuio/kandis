@@ -38,6 +38,6 @@ defmodule Kandis.KdError do
   end
 
   def log(data, options) do
-    data |> KandisHelpers.log(options[:label])
+    data |> Kandis.KdHelpers.log(options[:label])
   end
 end

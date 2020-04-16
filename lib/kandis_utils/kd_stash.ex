@@ -55,7 +55,7 @@ defmodule Kandis.KdStash do
         "#{idx}  #{key}  ➜  #{label}"
       end)
       |> Enum.join("\n")
-      |> MwHelpers.log()
+      |> Kandis.KdHelpers.log()
 
     {:reply, list, items}
   end

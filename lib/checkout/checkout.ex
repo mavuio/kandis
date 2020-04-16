@@ -23,17 +23,6 @@ defmodule Kandis.Checkout do
 
   def process(conn, _params), do: conn
 
-  def process_callback(conn, %{"provider" => provider} = params) when is_binary(provider) do
-    # call process_callback-function of provider
-    apply(
-      get_payment_module_name(provider),
-      :process_callback,
-      [conn, params]
-    )
-  end
-
-  def process_callback(conn, _params), do: conn
-
   def get_template_name_for_step(step) do
     "checkout_#{step}.html"
   end
@@ -69,14 +58,6 @@ defmodule Kandis.Checkout do
     do: record
 
   def get_checkout_record(_), do: get_empty_checkout_record()
-
-  def get_payment_module_name(provider) do
-    String.to_atom(
-      "Elixir." <>
-        Application.get_env(:kandis, :payments_module_path) <>
-        "." <> Macro.camelize("#{provider}")
-    )
-  end
 
   def get_module_name(step) do
     String.to_atom(

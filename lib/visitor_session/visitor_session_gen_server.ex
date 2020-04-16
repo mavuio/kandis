@@ -121,16 +121,13 @@ defmodule Kandis.VisitorSessionGenServer do
   @doc """
   fetch data from db:
   """
+  @impl GenServer
   def handle_info(:fetch_data, state) do
     updated_state =
-      if is_nil(@repo) do
-        state
-      else
-        fetch_data_from_db(state.sid)
-        |> case do
-          nil -> state
-          data_from_db -> %__MODULE__{state | data: data_from_db}
-        end
+      fetch_data_from_db(state.sid)
+      |> case do
+        nil -> state
+        data_from_db -> %__MODULE__{state | data: data_from_db}
       end
 
     {:noreply, updated_state}

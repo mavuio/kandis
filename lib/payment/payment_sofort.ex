@@ -4,18 +4,22 @@ defmodule Kandis.Payment.Sofort do
   use Phoenix.HTML
 
   @providername "sofort"
-  def create_payment_attempt({amount, curr}, orderdata, orderinfo) do
+  def create_payment_attempt({amount, curr}, order_nr, orderdata, orderinfo) do
     # process sofort.com payment
-    data = generate_payment_data({amount, curr}, orderdata, orderinfo)
+    data = generate_payment_data({amount, curr}, order_nr, orderdata, orderinfo)
 
     payment_url = Kandis.KdHelpers.array_get(data, ["new_transaction", "payment_url"])
+    id = Kandis.KdHelpers.array_get(data, ["new_transaction", "transaction"])
 
     # data = update_or_create_intent({amount, curr}, get_stripe_payload(orderinfo), nil)
 
     %Kandis.PaymentAttempt{
       provider: @providername,
       data: data,
-      payment_url: payment_url
+      id: id,
+      order_nr: order_nr,
+      payment_url: payment_url,
+      created: nil
     }
   end
 
@@ -34,23 +38,33 @@ defmodule Kandis.Payment.Sofort do
   #   }
   # end
 
-  # def process_callback(conn, _params) do
-  #   conn.private[:raw_body]
-  #   |> XmlToMap.naive_map()
-  #   |> case do
-  #     %{"status_notification" => %{"transaction" => tid}} ->
-  #       get_status_for_transaction(tid)
-  #       |> IO.inspect(label: "mwuits-debug 2020-04-08_22:23 RESPONSE:")
+  def process_callback(conn, %{"vid" => vid} = _params) do
+    msg =
+      conn.private[:raw_body]
+      |> XmlToMap.naive_map()
+      |> case do
+        %{"status_notification" => %{"transaction" => tid}} ->
+          info = fetch_info_for_transaction(tid)
 
-  #     # |> case do
-  #     # end
+          status =
+            case info["transactions"]["transaction_details"]["status"] do
+              "untraceable" -> :ok
+              _ -> :error
+            end
 
-  #     err ->
-  #       raise "cannot handle sofort.callback-data: #{inspect(err)}"
-  #   end
-  # end
+          info
+          |> Kandis.Payment.log_event(vid, tid, "got #{status} response from #{@providername}")
 
-  def get_status_for_transaction(transaction_id) when is_binary(transaction_id) do
+          "received callback, server-status: #{status}"
+
+        err ->
+          "cannot handle sofort.callback-data: #{inspect(err)}"
+      end
+
+    Plug.Conn.send_resp(conn, 200, msg)
+  end
+
+  def fetch_info_for_transaction(transaction_id) when is_binary(transaction_id) do
     ~E(<?xml version="1.0" encoding="UTF-8" ?>
         <transaction_request version="2">
               <transaction><%= transaction_id %></transaction>
@@ -66,8 +80,9 @@ defmodule Kandis.Payment.Sofort do
     end
   end
 
-  def generate_payment_data({amount, curr}, orderdata, orderinfo) do
-    generate_request_xml({amount, curr}, orderdata, orderinfo)
+  def generate_payment_data({amount, curr}, order_nr, orderdata, orderinfo) do
+    generate_request_xml({amount, curr}, order_nr, orderdata, orderinfo)
+    |> IO.inspect(label: "mwuits-debug 2020-04-16_10:20 REQUESTXML")
     |> make_request()
     |> case do
       {:ok, response} -> response.body |> XmlToMap.naive_map()
@@ -75,19 +90,19 @@ defmodule Kandis.Payment.Sofort do
     end
   end
 
-  def generate_request_xml({amount, curr}, orderdata, orderinfo) do
-    transaction_id = orderdata.cart_id
-
+  def generate_request_xml({amount, curr}, order_nr, orderdata, orderinfo) do
     project_id = Application.get_env(:kandis, :sofort)[:project_id]
+
+    lang = orderdata["lang"]
 
     next_url =
       (Application.get_env(:kandis, :sofort)[:local_url] <>
-         "/ex/checkout/payment")
+         "/ex/#{lang}/checkout/payment_return")
       |> String.replace(".test/", "/")
 
     notification_url =
       (Application.get_env(:kandis, :sofort)[:local_url] <>
-         "/ex/checkout/callback/sofort")
+         "/ex/#{lang}/checkout/callback/sofort" <> "?vid=#{orderinfo.vid}")
       |> String.replace(".test/", "/")
 
     ~E(
@@ -99,15 +114,15 @@ defmodule Kandis.Payment.Sofort do
             <currency_code><%= curr %></currency_code>
             <reasons>
                   <reason>EVA BLUT Order</reason>
-                  <reason><%= transaction_id %></reason>
+                  <reason><%= order_nr %></reason>
             </reasons>
             <user_variables>
                   <vid><%= orderinfo.vid %></vid>
                   <cart_id><%= orderdata.cart_id %></cart_id>
             </user_variables>
-            <success_url><%= next_url %>?success=<%= transaction_id %></success_url>
+            <success_url><%= next_url %>?success=<%= order_nr %></success_url>
             <success_link_redirect>1</success_link_redirect>
-            <abort_url><%= next_url %>?abort=<%= transaction_id %></abort_url>
+            <abort_url><%= next_url %>?abort=<%= order_nr %></abort_url>
             <notification_urls>
                   <notification_url><%= notification_url %></notification_url>
             </notification_urls>
