@@ -89,10 +89,14 @@ defmodule Kandis.Checkout do
     map |> Map.new(fn {k, v} -> {to_string(k), v} end)
   end
 
-  def create_ordercart(cart, lang \\ "en") when is_map(cart) do
+  def create_ordercart(cart, lang \\ "en")
+
+  def create_ordercart(cart, lang) when is_map(cart) do
     @local_checkout.create_ordercart(cart)
     |> Map.put(:lang, lang)
   end
+
+  def create_ordercart(_, _), do: nil
 
   def create_orderinfo(checkout_record, vid) when is_map(checkout_record) and is_binary(vid) do
     @local_checkout.create_orderinfo(checkout_record)
@@ -113,12 +117,61 @@ defmodule Kandis.Checkout do
     end
   end
 
+  def redirect_if_invalid_order(conn, order, %{} = params, [] = opts \\ []) do
+    state =
+      case order do
+        nil -> "undefined"
+        %_{} = order -> order.state
+      end
+
+    case state do
+      state when state in ~w(cancelled undefined) ->
+        conn
+        |> Phoenix.Controller.put_flash(
+          :warning,
+          opts[:msg] || "checkout was aborted because no valid order was found"
+        )
+        |> Phoenix.Controller.redirect(to: get_cart_basepath(params))
+        |> Plug.Conn.halt()
+
+      state when state in ~w(paid emails_sent invoice_generated) ->
+        conn
+        |> Phoenix.Controller.redirect(to: get_link_for_step(params, "finished"))
+        |> Plug.Conn.halt()
+
+      _ ->
+        conn
+    end
+  end
+
   def get_cart_basepath(params \\ %{}) when is_map(params) do
     @local_checkout.get_cart_basepath(params)
   end
 
   def get_shipping_country(orderinfo) when is_map(orderinfo) do
     @local_checkout.get_shipping_country(orderinfo)
+  end
+
+  def reset_checkout(order) do
+    vid = order.orderinfo.vid
+    cart_id = order.cart_id
+
+    # check if vid still contains cart_id, only proceed if this is true
+    cart = Cart.get_cart_record(vid)
+
+    if(cart.cart_id == cart_id) do
+      # save whole visitorsession under cart_id
+      VisitorSession.clean_and_archive(
+        vid,
+        %{
+          "cart" => Cart.get_empty_cart_record(),
+          "last_order_nr" => order.order_nr,
+          "payment" => nil,
+          "payment_log" => nil
+        },
+        cart_id
+      )
+    end
   end
 
   def preview_order(vid, context) when is_binary(vid) do

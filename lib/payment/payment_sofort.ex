@@ -23,21 +23,6 @@ defmodule Kandis.Payment.Sofort do
     }
   end
 
-  # def update_payment_attempt_if_needed(
-  #       %Kandis.PaymentAttempt{} = attempt,
-  #       {amount, curr},
-  #       orderdata,
-  #       orderinfo
-  #     ) do
-  #   data =
-  #     update_or_create_intent({amount, curr}, get_stripe_payload(orderinfo), attempt.data["id"])
-
-  #   %Kandis.PaymentAttempt{
-  #     provider: @providername,
-  #     data: data
-  #   }
-  # end
-
   def process_callback(conn, %{"vid" => vid} = _params) do
     msg =
       conn.private[:raw_body]
@@ -46,16 +31,25 @@ defmodule Kandis.Payment.Sofort do
         %{"status_notification" => %{"transaction" => tid}} ->
           info = fetch_info_for_transaction(tid)
 
-          status =
-            case info["transactions"]["transaction_details"]["status"] do
-              "untraceable" -> :ok
-              _ -> :error
+          attempt = Kandis.Payment.get_attempt_by_id(tid, vid)
+
+          {status, order_nr} =
+            case {info["transactions"]["transaction_details"]["status"], attempt} do
+              {"untraceable", %Kandis.PaymentAttempt{} = attempt} ->
+                {:ok, attempt.order_nr}
+
+              {_, _} ->
+                {:error, nil}
             end
 
           info
           |> Kandis.Payment.log_event(vid, tid, "got #{status} response from #{@providername}")
 
-          "received callback, server-status: #{status}"
+          if status == :ok do
+            Kandis.Order.finish_order(order_nr)
+          end
+
+          status
 
         err ->
           "cannot handle sofort.callback-data: #{inspect(err)}"
@@ -93,7 +87,7 @@ defmodule Kandis.Payment.Sofort do
   def generate_request_xml({amount, curr}, order_nr, orderdata, orderinfo) do
     project_id = Application.get_env(:kandis, :sofort)[:project_id]
 
-    lang = orderdata["lang"]
+    lang = orderdata[:lang]
 
     next_url =
       (Application.get_env(:kandis, :sofort)[:local_url] <>
@@ -102,7 +96,7 @@ defmodule Kandis.Payment.Sofort do
 
     notification_url =
       (Application.get_env(:kandis, :sofort)[:local_url] <>
-         "/ex/#{lang}/checkout/callback/sofort" <> "?vid=#{orderinfo.vid}")
+         "/ex/checkout/callback/sofort" <> "?vid=#{orderinfo.vid}")
       |> String.replace(".test/", "/")
 
     ~E(
@@ -120,9 +114,9 @@ defmodule Kandis.Payment.Sofort do
                   <vid><%= orderinfo.vid %></vid>
                   <cart_id><%= orderdata.cart_id %></cart_id>
             </user_variables>
-            <success_url><%= next_url %>?success=<%= order_nr %></success_url>
+            <success_url><%= next_url %>?status=success&amp;order_nr=<%= order_nr %></success_url>
             <success_link_redirect>1</success_link_redirect>
-            <abort_url><%= next_url %>?abort=<%= order_nr %></abort_url>
+            <abort_url><%= next_url %>?status=cancelled&amp;order_nr=<%= order_nr %></abort_url>
             <notification_urls>
                   <notification_url><%= notification_url %></notification_url>
             </notification_urls>

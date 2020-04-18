@@ -53,6 +53,7 @@ defmodule Kandis.Checkout.LiveViewStep do
 
       # ignore other types of messages
       def super_handle_info(msg, socket) do
+        msg |> IO.inspect(label: "super handle info -----------------------------------")
         {:noreply, socket}
       end
 

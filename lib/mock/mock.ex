@@ -17,5 +17,8 @@ defmodule Kandis.Mock do
   def apply_delivery_cost(_, _), do: %{}
   def create_lineitem_from_cart_item(_), do: %{}
   def get_invoice_template_url(_), do: ""
-  def decrement_for_sku(_, _), do: %{}
+  def decrement_stock_for_sku(_, _, _), do: %{}
+  def update_stock(_), do: nil
+
+  def finish_order(_), do: nil
 end

@@ -220,6 +220,8 @@ defmodule Kandis.Order do
     |> atomize_maps()
   end
 
+  def get_by_order_nr(nil), do: nil
+
   def get_by_invoice_nr(invoice_nr) when is_binary(invoice_nr) do
     @repo.get_by(@order_record, invoice_nr: invoice_nr)
     |> atomize_maps()
@@ -259,17 +261,34 @@ defmodule Kandis.Order do
     |> @order_record.changeset(%{state: new_status})
     |> @repo.update()
     |> case do
-      {:ok, rec} -> rec
-      {:error, _err} -> raise "cannot set state on #{any_id}"
+      {:ok, order} ->
+        case new_status do
+          "cancelled" -> Task.start(fn -> update_stock(order) end)
+          _ -> nil
+        end
+
+        order
+
+      {:error, _err} ->
+        raise "cannot set state on #{any_id}"
     end
   end
 
   def decrement_stock_for_order(%_{} = order) do
     order.orderdata.lineitems
     |> Enum.filter(&(&1.type == "product"))
-    |> Enum.map(&@local_order.decrement_for_sku(&1.sku, &1.amount))
+    |> Enum.map(&decrement_stock_for_sku(&1.sku, &1.amount, order))
 
+    update_stock(order)
     order
+  end
+
+  def decrement_stock_for_sku(sku, amount, order) do
+    @local_order.decrement_stock_for_sku(sku, amount, order)
+  end
+
+  def update_stock(order) do
+    @local_order.update_stock(order)
   end
 
   def create_order_record_from_checkout(orderdata, orderinfo)
@@ -356,12 +375,12 @@ defmodule Kandis.Order do
     create_orderhtml(order.orderdata, order.orderinfo, order, mode)
   end
 
-  def get_current_order_for_vid(vid) when is_binary(vid) do
+  def get_current_order_for_vid(vid, params \\ %{}) when is_binary(vid) and is_map(params) do
     with _cart = %{cart_id: cart_id} <- Kandis.Cart.get_cart_record(vid),
          %_{} = order <- get_by_cart_id(cart_id) do
       order
     else
-      _err -> nil
+      _err -> get_by_order_nr(params["order_nr"])
     end
   end
 
@@ -433,6 +452,19 @@ defmodule Kandis.Order do
       {:error, error} ->
         {:error, error}
     end
+  end
+
+  def finish_order(order_nr) when is_binary(order_nr) do
+    order = get_by_order_nr(order_nr)
+
+    if order.state == "w4payment" do
+      set_state(order_nr, "paid")
+      Checkout.reset_checkout(order)
+    end
+
+    order = get_by_order_nr(order_nr)
+
+    @local_order.finish_order(order)
   end
 
   def get_latest_invoice_nr(prefix) do

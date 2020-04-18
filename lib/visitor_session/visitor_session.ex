@@ -1,4 +1,8 @@
 defmodule Kandis.VisitorSession do
+  require Ecto.Query
+  @repo Application.get_env(:kandis, :repo)
+  alias Kandis.VisitorSessionStore
+
   @moduledoc false
   alias Kandis.VisitorSessionGenServer
 
@@ -29,5 +33,13 @@ defmodule Kandis.VisitorSession do
 
     VisitorSessionGenServer.save_data_to_db(archive_sid, archive_data)
     set_data(sid, new_data)
+  end
+
+  def get_latest_sids(n \\ 10) when is_integer(n) do
+    VisitorSessionStore
+    |> Ecto.Query.select([r], {r.inserted_at, r.sid})
+    |> Ecto.Query.order_by(desc: :inserted_at)
+    |> Ecto.Query.limit(^n)
+    |> @repo.all()
   end
 end

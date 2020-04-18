@@ -90,7 +90,7 @@ defmodule Kandis.Payment do
 
   def get_latest_payment_attempt(vid) do
     get_all_payment_attempts(vid)
-    |> hd()
+    |> List.first()
   end
 
   def get_all_payment_attempts_for_provider(providername, vid)
@@ -102,7 +102,7 @@ defmodule Kandis.Payment do
   def get_payment_attempt_for_provider(providername, vid)
       when is_binary(vid) and is_binary(providername) do
     get_all_payment_attempts_for_provider(providername, vid)
-    |> hd()
+    |> List.first()
   end
 
   def create_and_add_payment_attempt_for_provider(providername, order_nr, orderdata, orderinfo)
@@ -126,7 +126,7 @@ defmodule Kandis.Payment do
   def get_attempt_by_id(id, vid) when is_binary(id) do
     get_all_payment_attempts(vid)
     |> Enum.filter(&(&1.id == id))
-    |> hd()
+    |> List.first()
   end
 
   def update_payment_attempt_if_needed(
