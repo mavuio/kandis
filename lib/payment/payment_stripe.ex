@@ -111,9 +111,9 @@ defmodule Kandis.Payment.Stripe do
 
   def process_callback(conn, %{"type" => type} = params) do
     metadata = params["data"]["object"]["metadata"]
+    id = params["data"]["object"]["id"]
 
     vid = metadata["visit_id"]
-    id = metadata["id"]
 
     attempt = Kandis.Payment.get_attempt_by_id(id, vid)
 

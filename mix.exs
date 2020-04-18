@@ -4,7 +4,7 @@ defmodule Kandis.MixProject do
   def project do
     [
       app: :kandis,
-      version: "0.3.0",
+      version: "0.3.1",
       start_permanent: Mix.env() == :prod,
       deps: deps()
     ]
