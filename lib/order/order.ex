@@ -483,4 +483,18 @@ defmodule Kandis.Order do
     |> Ecto.Query.update(set: [state: "cancelled"])
     |> @repo.update_all([])
   end
+
+  def cancel_expired_orders(n \\ 100) do
+    get_expired_orders()
+    |> Enum.take(n)
+    |> Enum.map(fn order_nr -> set_state(order_nr, "cancelled") end)
+  end
+
+  def get_expired_orders() do
+    @order_record
+    |> Ecto.Query.where([r], r.state == "w4payment")
+    |> Ecto.Query.where([r], r.inserted_at <= fragment("now()-interval 60 minute"))
+    |> Ecto.Query.select([r], r.order_nr)
+    |> @repo.all()
+  end
 end
