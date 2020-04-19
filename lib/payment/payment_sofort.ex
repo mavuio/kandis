@@ -55,7 +55,7 @@ defmodule Kandis.Payment.Sofort do
           "cannot handle sofort.callback-data: #{inspect(err)}"
       end
 
-    Plug.Conn.send_resp(conn, 200, msg)
+    Plug.Conn.send_resp(conn, 200, "#{msg}")
   end
 
   def fetch_info_for_transaction(transaction_id) when is_binary(transaction_id) do
