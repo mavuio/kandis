@@ -30,6 +30,8 @@ defmodule Kandis.Pdfgenerator do
   end
 
   def generate_invoice_pdf(any_order_id) do
+    any_order_id |> IO.inspect(label: "generate_invoice_pdf ")
+
     with order when is_map(order) <- Order.get_by_any_id(any_order_id),
          html_url when is_binary(html_url) <- get_invoice_template_url(order.order_nr),
          filename when is_binary(filename) <- get_filename_for_invoice_nr(order.invoice_nr),

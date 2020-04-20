@@ -491,9 +491,12 @@ defmodule Kandis.Order do
   end
 
   def get_expired_orders() do
+    expire_minutes = 30
+    expire_time = DateTime.utc_now() |> DateTime.add(expire_minutes * -60, :second)
+
     @order_record
     |> Ecto.Query.where([r], r.state == "w4payment")
-    |> Ecto.Query.where([r], r.inserted_at <= fragment("now()-interval 60 minute"))
+    |> Ecto.Query.where([r], r.inserted_at <= ^expire_time)
     |> Ecto.Query.select([r], r.order_nr)
     |> @repo.all()
   end
