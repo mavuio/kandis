@@ -22,13 +22,12 @@ defmodule Kandis.Order do
 
   def create_orderhtml(orderdata, orderinfo, order_record \\ nil, mode \\ "order")
       when is_map(orderdata) and is_map(orderinfo) do
-    :cool
-
     Phoenix.View.render(@server_view, "orderhtml.html", %{
       orderdata: orderdata,
       orderinfo: orderinfo,
       order: order_record,
       lang: orderdata.lang,
+      mode: mode,
       invoicemode: mode == "invoice"
     })
   end
