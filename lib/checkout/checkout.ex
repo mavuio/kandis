@@ -187,10 +187,11 @@ defmodule Kandis.Checkout do
 
   def create_order_from_checkout(vid, context) when is_binary(vid) do
     cart = Cart.get_augmented_cart_record(vid, context)
-    checkout_record = get_checkout_record(vid)
 
-    ordercart = create_ordercart(cart, context["lang"])
+    checkout_record = get_checkout_record(vid)
     orderinfo = create_orderinfo(checkout_record, vid)
+
+    ordercart = create_ordercart(cart, context["lang"], orderinfo)
     orderdata = Order.create_orderdata(ordercart, orderinfo)
 
     Kandis.Order.create_new_order(orderdata, orderinfo)

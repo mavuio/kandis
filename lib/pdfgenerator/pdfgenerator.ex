@@ -3,17 +3,17 @@ defmodule Kandis.Pdfgenerator do
   import Kandis.KdHelpers, warn: false
   @moduledoc false
 
-  @get_invoice_template_url Application.get_env(:kandis, :get_invoice_template_url)
+  @get_pdf_template_url Application.get_env(:kandis, :get_pdf_template_url)
 
-  def get_pdf_file_for_invoice_nr(invoice_nr, params \\ %{}) do
-    filename = get_filename_for_invoice_nr(invoice_nr)
+  def get_pdf_file_for_invoice_nr(invoice_nr, mode, params \\ %{}) when is_binary(mode) do
+    filename = get_filename_for_invoice_nr(invoice_nr, mode)
 
     case File.exists?(filename) and is_nil(params["regenerate"]) do
       true ->
         filename
 
       false ->
-        generated_filename = generate_invoice_pdf(invoice_nr)
+        generated_filename = generate_invoice_pdf(mode, invoice_nr)
 
         if generated_filename == filename do
           filename
@@ -23,26 +23,64 @@ defmodule Kandis.Pdfgenerator do
     end
   end
 
-  def get_filename_for_invoice_nr(invoice_nr) when is_binary(invoice_nr) do
-    invoice_dir = Application.get_env(:kandis, :invoice_dir)
-    filename = "rg_#{invoice_nr}.pdf"
-    "#{invoice_dir}/#{filename}"
+  def get_pdf_file_for_order_nr(order_nr, mode, params \\ %{}) when is_binary(mode) do
+    filename = get_filename_for_order_nr(order_nr, mode)
+
+    case File.exists?(filename) and is_nil(params["regenerate"]) do
+      true ->
+        filename
+
+      false ->
+        generated_filename = generate_order_pdf(mode, order_nr)
+
+        if generated_filename == filename do
+          filename
+        else
+          raise "filenames do not match #{generated_filename} vs #{filename}"
+        end
+    end
   end
 
-  def generate_invoice_pdf(any_order_id) do
-    any_order_id |> IO.inspect(label: "generate_invoice_pdf ")
+  def get_filename_for_invoice_nr(invoice_nr, mode)
+      when is_binary(invoice_nr) and is_binary(mode) do
+    pdf_dir = Application.get_env(:kandis, :pdf_dir)
+    filename = "#{mode}_#{invoice_nr}.pdf"
+    "#{pdf_dir}/#{filename}"
+  end
+
+  def get_filename_for_order_nr(order_nr, mode) when is_binary(order_nr) and is_binary(mode) do
+    pdf_dir = Application.get_env(:kandis, :pdf_dir)
+    filename = "#{mode}_#{order_nr}.pdf"
+    "#{pdf_dir}/#{filename}"
+  end
+
+  def generate_invoice_pdf(mode, any_order_id) when is_binary(mode) do
+    any_order_id |> IO.inspect(label: "generate_invoice_pdf #{mode}")
 
     with order when is_map(order) <- Order.get_by_any_id(any_order_id),
-         html_url when is_binary(html_url) <- get_invoice_template_url(order.order_nr),
-         filename when is_binary(filename) <- get_filename_for_invoice_nr(order.invoice_nr),
+         html_url when is_binary(html_url) <- get_pdf_template_url(order.order_nr, mode),
+         filename when is_binary(filename) <- get_filename_for_invoice_nr(order.invoice_nr, mode),
          cloud_url when is_binary(cloud_url) <- generate_pdf_in_cloud(html_url, filename),
          {:ok, filename} when is_binary(filename) <- store_pdf_locally(cloud_url, filename) do
       filename
     end
   end
 
-  def get_invoice_template_url(order_nr) when is_binary(order_nr),
-    do: @get_invoice_template_url.(order_nr)
+  def generate_order_pdf(mode, any_order_id) when is_binary(mode) do
+    any_order_id |> IO.inspect(label: "generate_order_pdf #{mode}")
+
+    with order when is_map(order) <- Order.get_by_any_id(any_order_id),
+         html_url when is_binary(html_url) <- get_pdf_template_url(order.order_nr, mode),
+         filename when is_binary(filename) <- get_filename_for_order_nr(order.order_nr, mode),
+         cloud_url when is_binary(cloud_url) <- generate_pdf_in_cloud(html_url, filename),
+         {:ok, filename} when is_binary(filename) <- store_pdf_locally(cloud_url, filename) do
+      filename
+    end
+  end
+
+  def get_pdf_template_url(order_nr, mode, params \\ %{})
+      when is_binary(order_nr) and is_binary(mode),
+      do: @get_pdf_template_url.(order_nr, mode, params)
 
   def generate_pdf_in_cloud(html_url, filename)
       when is_binary(html_url) and is_binary(filename) do
@@ -58,8 +96,8 @@ defmodule Kandis.Pdfgenerator do
   def get_url_for_file(filename) do
     String.replace_leading(
       filename,
-      Application.get_env(:evablut, :config)[:invoice_dir],
-      Application.get_env(:evablut, :config)[:invoice_url]
+      Application.get_env(:kandis, :pdf_dir),
+      Application.get_env(:kandis, :pdf_url)
     )
   end
 
@@ -89,10 +127,21 @@ defmodule Kandis.Pdfgenerator do
     |> Jason.encode!()
   end
 
+  # def make_request(body) do
+  #   base_url = Application.get_env(:kandis, :api2pdf)[:base_url]
+  #   api_key = Application.get_env(:kandis, :api2pdf)[:api_key]
+  #   url = "#{base_url}/chrome/url/" |> IO.inspect(label: "mwuits-debug 2020-03-29_12:07 ")
+
+  #   HTTPoison.post(url, body, Authorization: api_key)
+  # end
+
   def make_request(body) do
-    base_url = Application.get_env(:evablut, :api2pdf)[:base_url]
-    api_key = Application.get_env(:evablut, :api2pdf)[:api_key]
-    url = "#{base_url}/chrome/url/" |> IO.inspect(label: "mwuits-debug 2020-03-29_12:07 ")
+    base_url = "https://v2018.api2pdf.com"
+
+    api_key = Application.get_env(:kandis, :api2pdf)[:api_key]
+
+    url =
+      "#{base_url}/chrome/url/" |> IO.inspect(label: "mwuits-debug 2020-03-29_12:07 #{api_key}")
 
     HTTPoison.post(url, body, Authorization: api_key)
   end

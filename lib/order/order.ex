@@ -386,7 +386,13 @@ defmodule Kandis.Order do
 
   # invoice functions
 
-  def get_invoice_file(any_id, params \\ %{}) when is_binary(any_id) or is_integer(any_id) do
+  def get_invoice_file(any_id, params \\ %{}) when is_binary(any_id) or is_integer(any_id),
+    do: get_order_file(any_id, "invoice", params)
+
+  def get_order_file(any_id, mode, params \\ %{})
+
+  def get_order_file(any_id, "invoice" = mode, params)
+      when is_binary(any_id) or is_integer(any_id) do
     get_by_any_id(any_id)
     |> case do
       %{invoice_nr: invoice_nr} when is_binary(invoice_nr) -> {:ok, invoice_nr}
@@ -394,15 +400,34 @@ defmodule Kandis.Order do
     end
     |> case do
       {:ok, invoice_nr} ->
-        Pdfgenerator.get_pdf_file_for_invoice_nr(invoice_nr, params)
+        Pdfgenerator.get_pdf_file_for_invoice_nr(invoice_nr, mode, params)
 
         # {:error, error} ->
         #   raise "get_invoice_url received error:" <> inspect(error)
     end
   end
 
-  def get_invoice_url(any_id) when is_binary(any_id) or is_integer(any_id) do
-    get_invoice_file(any_id)
+  def get_order_file(any_id, mode, params) when is_binary(any_id) or is_integer(any_id) do
+    get_by_any_id(any_id)
+    |> case do
+      %{order_nr: order_nr} -> {:ok, order_nr}
+      _ -> nil
+    end
+    |> case do
+      {:ok, order_nr} ->
+        Pdfgenerator.get_pdf_file_for_order_nr(order_nr, mode, params)
+
+        # {:error, error} ->
+        #   raise "get_invoice_url received error:" <> inspect(error)
+    end
+  end
+
+  def get_invoice_url(any_id, params \\ %{}) when is_binary(any_id) or is_integer(any_id),
+    do: get_order_file_url(any_id, "invoice", params)
+
+  def get_order_file_url(any_id, mode, params \\ %{})
+      when is_binary(mode) and (is_binary(any_id) or is_integer(any_id)) do
+    get_order_file(any_id, mode, params)
     |> Pdfgenerator.get_url_for_file()
   end
 
