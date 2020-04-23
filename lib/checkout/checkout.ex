@@ -89,14 +89,14 @@ defmodule Kandis.Checkout do
     map |> Map.new(fn {k, v} -> {to_string(k), v} end)
   end
 
-  def create_ordercart(cart, lang \\ "en")
+  def create_ordercart(cart, lang \\ "en", orderinfo \\ %{})
 
-  def create_ordercart(cart, lang) when is_map(cart) do
-    @local_checkout.create_ordercart(cart)
+  def create_ordercart(cart, lang, orderinfo) when is_map(cart) do
+    @local_checkout.create_ordercart(cart, lang, orderinfo)
     |> Map.put(:lang, lang)
   end
 
-  def create_ordercart(_, _), do: nil
+  def create_ordercart(_, _, _), do: nil
 
   def create_orderinfo(checkout_record, vid) when is_map(checkout_record) and is_binary(vid) do
     @local_checkout.create_orderinfo(checkout_record)
@@ -178,8 +178,8 @@ defmodule Kandis.Checkout do
     cart = Cart.get_augmented_cart_record(vid, context)
     checkout_record = Kandis.Checkout.get_checkout_record(vid)
 
-    ordercart = Kandis.Checkout.create_ordercart(cart, context["lang"])
     orderinfo = Kandis.Checkout.create_orderinfo(checkout_record, vid)
+    ordercart = Kandis.Checkout.create_ordercart(cart, context["lang"], orderinfo)
     orderdata = Order.create_orderdata(ordercart, orderinfo)
     orderhtml = Order.create_orderhtml(orderdata, orderinfo)
     {orderdata, orderinfo, orderhtml}

@@ -1,7 +1,7 @@
 defmodule Kandis.MixProject do
   use Mix.Project
 
-  @version "0.3.6"
+  @version "0.3.7"
   def project do
     [
       app: :kandis,
@@ -23,7 +23,7 @@ defmodule Kandis.MixProject do
   defp deps do
     [
       {:ecto_sql, "~> 3.0"},
-      {:myxql, "~> 0.3.0"},
+      {:myxql, "~> 0.3.0", only: :test},
       {:accessible, "~> 0.2.1"},
       {:bertex, "~> 1.3"},
       {:struct_access, "~> 1.1.2"},
