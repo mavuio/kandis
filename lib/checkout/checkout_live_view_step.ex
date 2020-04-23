@@ -20,7 +20,6 @@ defmodule Kandis.Checkout.LiveViewStep do
     quote do
       @checkout_key "checkout"
       @behaviour Kandis.Checkout.LiveViewStep
-      use Phoenix.LiveView
       @before_compile Kandis.Checkout.LiveViewStep
 
       def super_render(assigns) do
@@ -32,7 +31,7 @@ defmodule Kandis.Checkout.LiveViewStep do
           changeset_for_this_step(incoming_data, socket.assigns)
           |> Map.put(:action, :insert)
 
-        {:noreply, assign(socket, changeset: changeset)}
+        {:noreply, Phoenix.LiveView.assign(socket, changeset: changeset)}
       end
 
       def super_handle_event("save", %{"step_data" => incoming_data}, socket) do
@@ -49,7 +48,9 @@ defmodule Kandis.Checkout.LiveViewStep do
         do:
           {:noreply,
            socket
-           |> redirect(to: Kandis.Checkout.get_link_for_step(socket.assigns, @step))}
+           |> Phoenix.LiveView.redirect(
+             to: Kandis.Checkout.get_link_for_step(socket.assigns, @step)
+           )}
 
       # ignore other types of messages
       def super_handle_info(msg, socket) do
@@ -66,17 +67,19 @@ defmodule Kandis.Checkout.LiveViewStep do
 
             {:noreply,
              socket
-             |> redirect(to: Kandis.Checkout.get_next_step_link(socket.assigns, @step))}
+             |> Phoenix.LiveView.redirect(
+               to: Kandis.Checkout.get_next_step_link(socket.assigns, @step)
+             )}
 
           {:error, %Ecto.Changeset{} = changeset} ->
-            {:noreply, assign(socket, changeset: changeset)}
+            {:noreply, Phoenix.LiveView.assign(socket, changeset: changeset)}
         end
       end
 
       def process(conn, params) do
         conn
         |> Plug.Conn.assign(:live_module, __MODULE__)
-        |> Kandis.Checkout.redirect_if_empty_cart(params[:visit_id], params)
+        |> Kandis.Checkout.redirect_if_empty_cart(params[:vid] || params[:visit_id], params)
       end
 
       def changeset_for_this_step(values, context) do
@@ -94,8 +97,10 @@ defmodule Kandis.Checkout.LiveViewStep do
   # default clauses at and of code:
   defmacro __before_compile__(_) do
     quote do
-      @impl Phoenix.LiveView
+      @impl true
       def render(assigns), do: super_render(assigns)
+
+      def dummy(), do: :dummyresponse3
 
       @impl Phoenix.LiveView
       def handle_event(event, msg, socket), do: super_handle_event(event, msg, socket)
