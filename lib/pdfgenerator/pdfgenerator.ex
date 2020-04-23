@@ -140,8 +140,9 @@ defmodule Kandis.Pdfgenerator do
 
     api_key = Application.get_env(:kandis, :api2pdf)[:api_key]
 
-    url =
-      "#{base_url}/chrome/url/" |> IO.inspect(label: "mwuits-debug 2020-03-29_12:07 #{api_key}")
+    url = "#{base_url}/chrome/url/"
+
+    body |> IO.inspect(label: "mwuits-debug 2020-04-24_01:24 POST #{url} #{api_key}")
 
     HTTPoison.post(url, body, Authorization: api_key)
   end
