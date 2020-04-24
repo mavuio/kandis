@@ -383,6 +383,24 @@ defmodule Kandis.Order do
     end
   end
 
+  def get_latest_order_for_vid(vid, params \\ %{}) when is_binary(vid) and is_map(params) do
+    with _cart = %{cart_id: cart_id} <- Kandis.Cart.get_cart_record(vid),
+         %_{} = firstorder <- get_all_by_cart_id(cart_id) |> hd(),
+         %_{} = order <- firstorder |> atomize_maps do
+      order
+    else
+      _err -> get_by_order_nr(params["order_nr"])
+    end
+  end
+
+  def get_all_by_cart_id(cart_id) do
+    @order_record
+    |> Ecto.Query.where([o], o.cart_id == ^cart_id)
+    |> Ecto.Query.where([o], o.state != "cancelled")
+    |> Ecto.Query.order_by([o], desc: o.id)
+    |> @repo.all()
+  end
+
   # invoice functions
 
   def get_invoice_file(any_id, params \\ %{}) when is_binary(any_id) or is_integer(any_id),
