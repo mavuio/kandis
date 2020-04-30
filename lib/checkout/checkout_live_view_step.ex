@@ -42,6 +42,13 @@ defmodule Kandis.Checkout.LiveViewStep do
         save_step_data(%{}, socket)
       end
 
+      def super_handle_event(event, msg, socket) do
+        msg
+        |> IO.inspect(label: "super handle event '#{event}' -----------------------------------")
+
+        {:noreply, socket}
+      end
+
       # reload page if checkout-data changed
       def super_handle_info({:visitor_session, [key, :updated], _new_data}, socket)
           when key in [@checkout_key, :all] do
