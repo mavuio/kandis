@@ -71,8 +71,8 @@ defmodule Kandis.Checkout do
     @local_checkout.redirect_to_default_step(conn, params)
   end
 
-  def get_link_for_step(context, current_step) when is_map(context) do
-    @local_checkout.get_link_for_step(context, current_step)
+  def get_link_for_step(context, step) when is_map(context) do
+    @local_checkout.get_link_for_step(context, step)
   end
 
   def get_next_step_link(context, current_step) when is_map(context) do

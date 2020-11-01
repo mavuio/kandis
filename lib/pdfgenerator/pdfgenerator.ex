@@ -3,7 +3,7 @@ defmodule Kandis.Pdfgenerator do
   import Kandis.KdHelpers, warn: false
   @moduledoc false
 
-  @get_pdf_template_url Application.get_env(:kandis, :get_pdf_template_url)
+  @get_pdf_template_url Application.compile_env(:kandis, :get_pdf_template_url)
 
   def get_pdf_file_for_invoice_nr(invoice_nr, mode, params \\ %{}) when is_binary(mode) do
     filename = get_filename_for_invoice_nr(invoice_nr, mode)

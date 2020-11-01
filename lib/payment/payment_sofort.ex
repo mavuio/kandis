@@ -8,6 +8,7 @@ defmodule Kandis.Payment.Sofort do
     # process sofort.com payment
     data = generate_payment_data({amount, curr}, order_nr, orderdata, orderinfo)
 
+    nil |> IO.inspect(label: "mwuits-debug 2020-08-19_00:20 payment data generated")
     payment_url = Kandis.KdHelpers.array_get(data, ["new_transaction", "payment_url"])
     id = Kandis.KdHelpers.array_get(data, ["new_transaction", "transaction"])
 
@@ -76,11 +77,14 @@ defmodule Kandis.Payment.Sofort do
 
   def generate_payment_data({amount, curr}, order_nr, orderdata, orderinfo) do
     generate_request_xml({amount, curr}, order_nr, orderdata, orderinfo)
-    |> IO.inspect(label: "mwuits-debug 2020-04-16_10:20 REQUESTXML")
+    |> IO.inspect(label: "mwuits-debug 2020-04-16_10:20b REQUESTXML")
     |> make_request()
     |> case do
-      {:ok, response} -> response.body |> XmlToMap.naive_map()
-      err -> raise "payment data generation failed #{inspect(err)}"
+      {:ok, response} ->
+        response.body |> XmlToMap.naive_map()
+
+      err ->
+        raise "payment data generation failed #{inspect(err)}"
     end
   end
 
@@ -135,5 +139,8 @@ defmodule Kandis.Payment.Sofort do
     url = "#{base_url}" |> IO.inspect(label: "mwuits-debug 2020-03-29_12:07 ")
 
     HTTPoison.post(url, String.trim(body), [], hackney: [basic_auth: {client_nr, api_key}])
+    |> IO.inspect(label: "mwuits-debug 2020-08-19_00:40 ➜ RESPONSE")
   end
 end
+
+1

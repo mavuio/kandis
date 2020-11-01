@@ -1,7 +1,8 @@
 defmodule Kandis.MixProject do
   use Mix.Project
 
-  @version "0.3.14"
+  # use "bump_ex"-command instead
+  @version "0.3.17"
   def project do
     [
       app: :kandis,

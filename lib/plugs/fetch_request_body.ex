@@ -1,5 +1,4 @@
 defmodule Kandis.Plugs.FetchRequestBody do
-  @moduledoc "Get public IP address of request from x-forwarded-for header"
   @behaviour Plug
 
   def init(opts) do
