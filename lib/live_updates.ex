@@ -20,7 +20,7 @@ defmodule Kandis.LiveUpdates do
 
   @doc "notify for specific user"
   def notify_live_view(user_id, message) do
-    message |> IO.inspect(label: "notify_live_view #{user_id}")
+    "" |> IO.inspect(label: "notify_live_view #{user_id}")
     Phoenix.PubSub.broadcast(@pubsub, topic(user_id), message)
   end
 
