@@ -18,7 +18,7 @@ defmodule Kandis.Pdfgenerator do
         if generated_filename == filename do
           filename
         else
-          raise "filenames do not match #{generated_filename} vs #{filename}"
+          nil
         end
     end
   end
