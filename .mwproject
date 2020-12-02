@@ -1,1 +1,2 @@
-MW_TARGET=root@cs1.naturfreunde.at:/www/kandis/
+MW_TARGET=root@vserver3.werkzeugh.at:/www/evablut_ex/deps/kandis/
+

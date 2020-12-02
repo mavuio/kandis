@@ -256,6 +256,8 @@ defmodule Kandis.Order do
   end
 
   def set_state(any_id, new_status) do
+    {any_id, new_status} |> Kandis.KdHelpers.log("attempt to set status of order ", :info)
+
     get_by_any_id(any_id)
     |> @order_record.changeset(%{state: new_status})
     |> @repo.update()
@@ -308,7 +310,7 @@ defmodule Kandis.Order do
   end
 
   def is_testorder?(orderdata, _orderinfo) do
-    Decimal.lt?(array_get(orderdata, [:stats, :total_price], 100), 1)
+    Decimal.lt?(array_get(orderdata, [:stats, :total_price], 100), 5)
   end
 
   def create_new_order_nr(is_testmode \\ false) do
@@ -538,7 +540,7 @@ defmodule Kandis.Order do
 
     @order_record
     |> Ecto.Query.where([r], r.state == "w4payment")
-    |> Ecto.Query.where([r], r.inserted_at <= ^expire_time)
+    |> Ecto.Query.where([r], r.updated_at <= ^expire_time)
     |> Ecto.Query.select([r], r.order_nr)
     |> @repo.all()
   end
