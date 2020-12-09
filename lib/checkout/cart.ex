@@ -76,6 +76,7 @@ defmodule Kandis.Cart do
     |> case do
       nil ->
         get_empty_cart_record()
+        |> store_cart_record_if_needed(vid)
 
       %{items: _items} = record ->
         record
