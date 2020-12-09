@@ -94,13 +94,13 @@ defmodule Kandis.Payment.Sofort do
     lang = orderdata[:lang]
 
     next_url =
-      (Application.get_env(:kandis, :sofort)[:local_url] <>
-         "/ex/#{lang}/checkout/payment_return")
+      (Application.get_env(:kandis, :sofort)[:local_baseurl] <>
+         "/#{lang}/checkout/payment_return")
       |> String.replace(".test/", "/")
 
     notification_url =
-      (Application.get_env(:kandis, :sofort)[:local_url] <>
-         "/ex/checkout/callback/sofort" <> "?vid=#{orderinfo.vid}")
+      (Application.get_env(:kandis, :sofort)[:local_baseurl] <>
+         "/checkout/callback/sofort" <> "?vid=#{orderinfo.vid}")
       |> String.replace(".test/", "/")
 
     ~E(
@@ -136,7 +136,7 @@ defmodule Kandis.Payment.Sofort do
     base_url = Application.get_env(:kandis, :sofort)[:base_url]
     api_key = Application.get_env(:kandis, :sofort)[:api_key]
     client_nr = Application.get_env(:kandis, :sofort)[:client_nr]
-    url = "#{base_url}" |> IO.inspect(label: "mwuits-debug 2020-03-29_12:07 ")
+    url = "#{base_url}" |> IO.inspect(label: "sofort.com URL ")
 
     HTTPoison.post(url, String.trim(body), [], hackney: [basic_auth: {client_nr, api_key}])
     |> IO.inspect(label: "mwuits-debug 2020-08-19_00:40 ➜ RESPONSE")
