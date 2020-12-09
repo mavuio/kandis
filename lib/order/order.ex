@@ -151,7 +151,7 @@ defmodule Kandis.Order do
   def update_taxrate_stats(taxrates = %{}, %{taxrate: taxrate} = item) do
     taxkey = "#{taxrate}"
 
-    taxrates |> IO.inspect(label: "mwuits-debug 2020-03-19_12:30 #{taxrate}:INCON(#{taxkey})")
+    # taxrates |> IO.inspect(label: "mwuits-debug 2020-03-19_12:30 #{taxrate}:INCON(#{taxkey})")
 
     taxrate_item =
       taxrates[taxkey]
@@ -160,7 +160,8 @@ defmodule Kandis.Order do
 
     taxrates
     |> Map.put(taxkey, taxrate_item)
-    |> IO.inspect(label: "mwuits-debug 2020-03-19_12:26 AFTEr ")
+
+    # |> IO.inspect(label: "mwuits-debug 2020-03-19_12:26 AFTEr ")
   end
 
   def update_taxrate_stats(taxes, _, _), do: taxes

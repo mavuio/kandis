@@ -142,7 +142,7 @@ defmodule Kandis.Pdfgenerator do
 
     url = "#{base_url}/chrome/url/"
 
-    body |> IO.inspect(label: "mwuits-debug 2020-04-24_01:24 POST #{url} #{api_key}")
+    body |> IO.inspect(label: "mwuits-debug 2020-04-24_01:24 POST #{url} api-key:#{api_key}")
 
     HTTPoison.post(url, body, Authorization: api_key)
   end
