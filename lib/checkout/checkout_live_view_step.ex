@@ -43,9 +43,6 @@ defmodule Kandis.Checkout.LiveViewStep do
       end
 
       def super_handle_event(event, msg, socket) do
-        msg
-        |> IO.inspect(label: "super handle event '#{event}' -----------------------------------")
-
         {:noreply, socket}
       end
 
@@ -65,7 +62,7 @@ defmodule Kandis.Checkout.LiveViewStep do
 
       # ignore other types of messages
       def super_handle_info(msg, socket) do
-        msg |> IO.inspect(label: "super handle info -----------------------------------")
+        msg |> Kandis.KdHelpers.log("super handle info", :debug)
         {:noreply, socket}
       end
 

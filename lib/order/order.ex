@@ -239,6 +239,10 @@ defmodule Kandis.Order do
     get_by_id(any_id)
   end
 
+  def get_by_any_id(%_{} = order) when is_struct(order) do
+    order
+  end
+
   def create_new_order(orderdata, orderinfo) do
     @repo.transaction(fn ->
       data = create_order_record_from_checkout(orderdata, orderinfo)
@@ -362,9 +366,11 @@ defmodule Kandis.Order do
 
   def get_order_query(params) do
     id = params["id"]
+    state = params["state"]
 
     @order_record
     |> pipe_when(id, Ecto.Query.where([o], o.id == ^id))
+    |> pipe_when(state, Ecto.Query.where([o], o.state == ^state))
     |> Ecto.Query.order_by([o], desc: o.id)
   end
 
