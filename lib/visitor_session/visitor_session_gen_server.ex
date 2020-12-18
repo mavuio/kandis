@@ -76,8 +76,6 @@ defmodule Kandis.VisitorSessionGenServer do
   end
 
   def handle_call({:set_value, key, value}, _from, old_state) do
-    # value |> IO.inspect(label: "mwuits-debug 2020-03-15_12:05 visitor-session SET ")
-
     state =
       put_in(
         old_state,
@@ -136,7 +134,10 @@ defmodule Kandis.VisitorSessionGenServer do
   @impl true
   def terminate(reason, _state) do
     reason
-    |> IO.inspect(label: "mwuits-debug 2020-03-18_11:24 Visitor Session  exits with reason ")
+    |> Kandis.KdHelpers.log(
+      "mwuits-debug 2020-03-18_11:24 Visitor Session  exits with reason ",
+      :info
+    )
 
     log(
       reason,

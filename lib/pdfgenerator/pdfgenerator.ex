@@ -55,7 +55,7 @@ defmodule Kandis.Pdfgenerator do
   end
 
   def generate_invoice_pdf(mode, any_order_id) when is_binary(mode) do
-    any_order_id |> IO.inspect(label: "generate_invoice_pdf #{mode}")
+    any_order_id |> Kandis.KdHelpers.log("generate_invoice_pdf #{mode}", :info)
 
     with order when is_map(order) <- Order.get_by_any_id(any_order_id),
          html_url when is_binary(html_url) <- get_pdf_template_url(order.order_nr, mode),
@@ -67,7 +67,7 @@ defmodule Kandis.Pdfgenerator do
   end
 
   def generate_order_pdf(mode, any_order_id) when is_binary(mode) do
-    any_order_id |> IO.inspect(label: "generate_order_pdf #{mode}")
+    any_order_id |> Kandis.KdHelpers.log("generate_order_pdf #{mode}", :info)
 
     with order when is_map(order) <- Order.get_by_any_id(any_order_id),
          html_url when is_binary(html_url) <- get_pdf_template_url(order.order_nr, mode),
@@ -103,8 +103,9 @@ defmodule Kandis.Pdfgenerator do
 
   def store_pdf_locally(remote_pdf_url, filename) do
     {remote_pdf_url, filename}
-    |> IO.inspect(
-      label: "mwuits-debug 2020-03-29_23:51 store_pdf_locally(remote_pdf_url, filename) "
+    |> Kandis.KdHelpers.log(
+      "mwuits-debug 2020-03-29_23:51 store_pdf_locally(remote_pdf_url, filename) ",
+      :info
     )
 
     if File.exists?(filename) do
@@ -130,7 +131,7 @@ defmodule Kandis.Pdfgenerator do
   # def make_request(body) do
   #   base_url = Application.get_env(:kandis, :api2pdf)[:base_url]
   #   api_key = Application.get_env(:kandis, :api2pdf)[:api_key]
-  #   url = "#{base_url}/chrome/url/" |> IO.inspect(label: "mwuits-debug 2020-03-29_12:07 ")
+  #   url = "#{base_url}/chrome/url/" |>Kandis.KdHelpers.log("mwuits-debug 2020-03-29_12:07 ",:info)
 
   #   HTTPoison.post(url, body, Authorization: api_key)
   # end
@@ -142,7 +143,8 @@ defmodule Kandis.Pdfgenerator do
 
     url = "#{base_url}/chrome/url/"
 
-    body |> IO.inspect(label: "mwuits-debug 2020-04-24_01:24 POST #{url} api-key:#{api_key}")
+    body
+    |> Kandis.KdHelpers.log("mwuits-debug 2020-04-24_01:24 POST #{url} api-key:#{api_key}", :info)
 
     HTTPoison.post(url, body, Authorization: api_key)
   end

@@ -9,7 +9,7 @@ defmodule Kandis.Payment.Sofort do
     # process sofort.com payment
     data = generate_payment_data({amount, curr}, order_nr, orderdata, orderinfo)
 
-    nil |> IO.inspect(label: "mwuits-debug 2020-08-19_00:20 payment data generated")
+    nil |> Kandis.KdHelpers.log("mwuits-debug 2020-08-19_00:20 payment data generated")
     payment_url = Kandis.KdHelpers.array_get(data, ["new_transaction", "payment_url"])
     id = Kandis.KdHelpers.array_get(data, ["new_transaction", "transaction"])
 
@@ -78,7 +78,7 @@ defmodule Kandis.Payment.Sofort do
 
   def generate_payment_data({amount, curr}, order_nr, orderdata, orderinfo) do
     generate_request_xml({amount, curr}, order_nr, orderdata, orderinfo)
-    |> IO.inspect(label: "mwuits-debug 2020-04-16_10:20b REQUESTXML")
+    |> Kandis.KdHelpers.log("mwuits-debug 2020-04-16_10:20b REQUESTXML", :info)
     |> make_request()
     |> case do
       {:ok, response} ->
@@ -142,10 +142,10 @@ defmodule Kandis.Payment.Sofort do
     base_url = Application.get_env(:kandis, :sofort)[:base_url]
     api_key = Application.get_env(:kandis, :sofort)[:api_key]
     client_nr = Application.get_env(:kandis, :sofort)[:client_nr]
-    url = "#{base_url}" |> IO.inspect(label: "sofort.com URL ")
+    url = "#{base_url}" |> Kandis.KdHelpers.log("sofort.com URL ", :info)
 
     HTTPoison.post(url, String.trim(body), [], hackney: [basic_auth: {client_nr, api_key}])
-    |> IO.inspect(label: "mwuits-debug 2020-08-19_00:40 ➜ RESPONSE")
+    |> Kandis.KdHelpers.log("mwuits-debug 2020-08-19_00:40 ➜ RESPONSE", :info)
   end
 end
 

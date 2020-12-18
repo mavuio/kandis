@@ -7,7 +7,7 @@ defmodule Kandis.Plugs.FetchRequestBody do
 
   def call(conn, opts) do
     {:ok, body, conn} = Plug.Conn.read_body(conn, opts)
-    body |> IO.inspect(label: "KANDIS READBODY")
+    body |> Kandis.KdHelpers.log("KANDIS READBODY", :info)
     conn |> Plug.Conn.put_private(:raw_body, body)
   end
 
