@@ -103,6 +103,11 @@ defmodule Kandis.Payment.Sofort do
          "/checkout/callback/sofort" <> "?vid=#{orderinfo.vid}")
       |> String.replace(".test/", "/")
 
+    payment_reason =
+      orderdata[:payment_reason]
+      |> if_nil(Application.get_env(:kandis, :sofort)[:payment_reason])
+      |> if_nil("Online - Order")
+
     ~E(
       <?xml version="1.0" encoding="UTF-8" ?>
       <multipay>
@@ -111,7 +116,7 @@ defmodule Kandis.Payment.Sofort do
             <amount><%= amount %></amount>
             <currency_code><%= curr %></currency_code>
             <reasons>
-                  <reason>EVA BLUT Order</reason>
+                  <reason><%= payment_reason %></reason>
                   <reason><%= order_nr %></reason>
             </reasons>
             <user_variables>
