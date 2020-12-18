@@ -160,6 +160,8 @@ defmodule Kandis.KdHelpers do
     case Decimal.parse(str) do
       :error -> str
       {:ok, dec} -> dec
+      {dec, rest} when is_binary(rest) -> dec
+      _ -> str
     end
   end
 
