@@ -2,6 +2,7 @@ defmodule Kandis.Payment.Sofort do
   @behaviour Kandis.Payment
 
   use Phoenix.HTML
+  import Kandis.KdHelpers
 
   @providername "sofort"
   def create_payment_attempt({amount, curr}, order_nr, orderdata, orderinfo) do
