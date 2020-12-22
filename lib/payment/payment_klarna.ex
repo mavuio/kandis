@@ -174,12 +174,6 @@ defmodule Kandis.Payment.Klarna do
   end
 
   def get_klarna_payload(orderdata, orderinfo) do
-    # orderdata
-    # |>Kandis.KdHelpers.log("mwuits-debug 2020-08-20_01:07 get_klarna_paylaod ➜  orderdata",:info)
-
-    # orderinfo
-    # |>Kandis.KdHelpers.log("mwuits-debug 2020-08-20_01:07 get_klarna_paylaod ➜  orderinfo",:info)
-
     taxamount = get_taxamount_from_orderdata(orderdata)
 
     %{
@@ -201,15 +195,13 @@ defmodule Kandis.Payment.Klarna do
         "country" => orderinfo[:country]
       }
     }
-
-    # |> Kandis.KdError.die(label: "mwuits-debug 2020-08-20_01:17 ")
   end
 
   def make_request(url, method) when is_atom(method) do
     base_url = Application.get_env(:kandis, :klarna)[:base_url] |> String.trim_trailing("/")
     username = Application.get_env(:kandis, :klarna)[:username]
     password = Application.get_env(:kandis, :klarna)[:password]
-    url = "#{base_url}#{url}" |> Kandis.KdHelpers.log("mwuits-debug 2020-03-29_12:07 ", :info)
+    url = "#{base_url}#{url}" |> Kandis.KdHelpers.log("make Klarna-Request ", :info)
 
     HTTPoison.request(method, url, _body = "", _headers = [],
       hackney: [basic_auth: {username, password}]
@@ -232,7 +224,7 @@ defmodule Kandis.Payment.Klarna do
             |> Jason.decode()
             |> case do
               {:ok, str} ->
-                str |> Kandis.KdHelpers.log("mwuits-debug 2020-08-19_00:40 ➜ RESPONSE", :info)
+                str |> Kandis.KdHelpers.log("klarna RESPONSE", :info)
 
               {:error, _} ->
                 %{"error" => body}
@@ -248,14 +240,12 @@ defmodule Kandis.Payment.Klarna do
     base_url = Application.get_env(:kandis, :klarna)[:base_url] |> String.trim_trailing("/")
     username = Application.get_env(:kandis, :klarna)[:username]
     password = Application.get_env(:kandis, :klarna)[:password]
-    url = "#{base_url}#{url}" |> Kandis.KdHelpers.log("mwuits-debug 2020-03-29_12:07 ", :info)
+    url = "#{base_url}#{url}" |> Kandis.KdHelpers.log("KLARNA REQUEST URL", :info)
 
     body =
       payload
       |> Jason.encode!()
-      |> Kandis.KdHelpers.log("mwuits-debug 2020-08-20_11:08 ")
-
-    # |> Kandis.KdError.die(label: "mwuits-debug 2020-08-20_02:07 ")
+      |> Kandis.KdHelpers.log("Klarna payload 2020-08-20_11:08 ", :info)
 
     HTTPoison.post(url, body, [{"Content-Type", "application/json"}],
       hackney: [basic_auth: {username, password}]
@@ -278,7 +268,7 @@ defmodule Kandis.Payment.Klarna do
             |> Jason.decode()
             |> case do
               {:ok, str} ->
-                str |> Kandis.KdHelpers.log("mwuits-debug 2020-08-19_00:40 ➜ RESPONSE", :info)
+                str |> Kandis.KdHelpers.log("KLARNA ➜ RESPONSE", :info)
 
               {:error, _} ->
                 %{"error" => body}

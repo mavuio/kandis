@@ -93,7 +93,7 @@ defmodule Kandis.Payment.Stripe do
       end
 
     case Stripy.req(:post, url, data)
-         |> Kandis.KdHelpers.log("mwuits-debug 2020-03-27_21:58 ", :info) do
+         |> Kandis.KdHelpers.log("Stripe POST intent", :info) do
       {:ok, response} ->
         response.body
         |> Jason.decode()

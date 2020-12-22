@@ -9,7 +9,7 @@ defmodule Kandis.Payment.Sofort do
     # process sofort.com payment
     data = generate_payment_data({amount, curr}, order_nr, orderdata, orderinfo)
 
-    nil |> Kandis.KdHelpers.log("mwuits-debug 2020-08-19_00:20 payment data generated")
+    nil |> Kandis.KdHelpers.log("SOFORT payment data generated", :info)
     payment_url = Kandis.KdHelpers.array_get(data, ["new_transaction", "payment_url"])
     id = Kandis.KdHelpers.array_get(data, ["new_transaction", "transaction"])
 
@@ -78,7 +78,7 @@ defmodule Kandis.Payment.Sofort do
 
   def generate_payment_data({amount, curr}, order_nr, orderdata, orderinfo) do
     generate_request_xml({amount, curr}, order_nr, orderdata, orderinfo)
-    |> Kandis.KdHelpers.log("mwuits-debug 2020-04-16_10:20b REQUESTXML", :info)
+    |> Kandis.KdHelpers.log("generate_payment_data REQUESTXML", :info)
     |> make_request()
     |> case do
       {:ok, response} ->
@@ -145,7 +145,7 @@ defmodule Kandis.Payment.Sofort do
     url = "#{base_url}" |> Kandis.KdHelpers.log("sofort.com URL ", :info)
 
     HTTPoison.post(url, String.trim(body), [], hackney: [basic_auth: {client_nr, api_key}])
-    |> Kandis.KdHelpers.log("mwuits-debug 2020-08-19_00:40 ➜ RESPONSE", :info)
+    |> Kandis.KdHelpers.log("SOFORT ➜ RESPONSE", :info)
   end
 end
 

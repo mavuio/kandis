@@ -115,7 +115,7 @@ defmodule Kandis.Pdfgenerator do
   def store_pdf_locally(remote_pdf_url, filename) do
     {remote_pdf_url, filename}
     |> Kandis.KdHelpers.log(
-      "mwuits-debug 2020-03-29_23:51 store_pdf_locally(remote_pdf_url, filename) ",
+      "store_pdf_locally(remote_pdf_url, filename) ",
       :info
     )
 
@@ -142,7 +142,6 @@ defmodule Kandis.Pdfgenerator do
   # def make_request(body) do
   #   base_url = Application.get_env(:kandis, :api2pdf)[:base_url]
   #   api_key = Application.get_env(:kandis, :api2pdf)[:api_key]
-  #   url = "#{base_url}/chrome/url/" |>Kandis.KdHelpers.log("mwuits-debug 2020-03-29_12:07 ",:info)
 
   #   HTTPoison.post(url, body, Authorization: api_key)
   # end
@@ -155,7 +154,7 @@ defmodule Kandis.Pdfgenerator do
     url = "#{base_url}/chrome/url/"
 
     body
-    |> Kandis.KdHelpers.log("mwuits-debug 2020-04-24_01:24 POST #{url} api-key:#{api_key}", :info)
+    |> Kandis.KdHelpers.log("calling pdf-cloud-service POST #{url} api-key:#{api_key}", :info)
 
     HTTPoison.post(url, body, Authorization: api_key)
   end

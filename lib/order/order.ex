@@ -151,8 +151,6 @@ defmodule Kandis.Order do
   def update_taxrate_stats(taxrates = %{}, %{taxrate: taxrate} = item) do
     taxkey = "#{taxrate}"
 
-    # taxrates |> Kandis.KdHelpers.log( "mwuits-debug 2020-03-19_12:30 #{taxrate}:INCON(#{taxkey})",:info)
-
     taxrate_item =
       taxrates[taxkey]
       |> if_empty(%{tax: "0", net: "0", gross: "0"})
@@ -160,8 +158,6 @@ defmodule Kandis.Order do
 
     taxrates
     |> Map.put(taxkey, taxrate_item)
-
-    # |> Kandis.KdHelpers.log( "mwuits-debug 2020-03-19_12:26 AFTEr ",:info)
   end
 
   def update_taxrate_stats(taxes, _, _), do: taxes

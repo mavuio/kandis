@@ -135,14 +135,8 @@ defmodule Kandis.VisitorSessionGenServer do
   def terminate(reason, _state) do
     reason
     |> Kandis.KdHelpers.log(
-      "mwuits-debug 2020-03-18_11:24 Visitor Session  exits with reason ",
+      "Visitor Session  exits with reason ",
       :info
-    )
-
-    log(
-      reason,
-      "mwuits-debug 2018-08-10_22:15 Visitor Session  exits with reason",
-      :warn
     )
   end
 
