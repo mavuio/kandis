@@ -14,7 +14,7 @@ defmodule Kandis.Order do
   @repo Application.get_env(:kandis, :repo)
   @translation_function Application.get_env(:kandis, :translation_function)
 
-  @callback create_lineitem_from_cart_item(map()) :: map()
+  @callback create_lineitem_from_cart_item(map(), map()) :: map()
   @callback apply_delivery_cost(map(), map()) :: map()
 
   def t(lang_or_context, translation_key, variables \\ []),
@@ -39,7 +39,7 @@ defmodule Kandis.Order do
       lang: ordercart.lang,
       cart_id: ordercart.cart_id
     }
-    |> add_lineitems_from_cart(ordercart)
+    |> add_lineitems_from_cart(ordercart, orderinfo)
     |> update_stats(orderinfo)
     |> add_product_subtotal(t(ordercart.lang, "order.subtotal"))
     |> @local_order.apply_delivery_cost(orderinfo)
@@ -103,12 +103,13 @@ defmodule Kandis.Order do
     end
   end
 
-  def add_lineitems_from_cart(orderdata, %{items: cartitems} = _ordercart) do
+  def add_lineitems_from_cart(orderdata, %{items: cartitems} = _ordercart, orderinfo)
+      when is_map(orderinfo) do
     orderdata
     |> update_in([:lineitems], fn lineitems ->
       new_lineitems =
         cartitems
-        |> Enum.map(&@local_order.create_lineitem_from_cart_item(&1))
+        |> Enum.map(&@local_order.create_lineitem_from_cart_item(&1, orderinfo))
         |> Enum.filter(&Kandis.KdHelpers.present?/1)
 
       lineitems ++ new_lineitems
