@@ -1,7 +1,7 @@
 defmodule Kandis.LiveUpdates do
   @topic inspect(__MODULE__)
 
-  @pubsub Application.compile_env(:kandis, :pubsub)
+  @pubsub Application.get_env(:kandis, :pubsub)
 
   @doc "subscribe for all users"
   def subscribe_live_view do

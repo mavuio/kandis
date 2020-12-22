@@ -3,7 +3,7 @@ defmodule Kandis.Pdfgenerator do
   import Kandis.KdHelpers, warn: false
   @moduledoc false
 
-  @get_pdf_template_url Application.compile_env(:kandis, :get_pdf_template_url)
+  @get_pdf_template_url Application.get_env(:kandis, :get_pdf_template_url)
 
   def get_pdf_file_for_invoice_nr(invoice_nr, mode, params \\ %{}) when is_binary(mode) do
     filename = get_filename_for_invoice_nr(invoice_nr, mode)
@@ -88,8 +88,19 @@ defmodule Kandis.Pdfgenerator do
 
     make_request(json)
     |> case do
-      {:ok, response} -> response.body |> Jason.decode!() |> Map.get("pdf")
-      _ -> nil
+      {:ok, response} ->
+        response.body
+        |> Jason.decode!()
+        |> case do
+          %{"pdf" => pdf} ->
+            pdf
+
+          res ->
+            res |> Kandis.KdHelpers.log("api2pdf provided error-response ", :error)
+        end
+
+      res ->
+        res |> Kandis.KdHelpers.log("api2pdf provided no response ", :error)
     end
   end
 
