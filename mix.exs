@@ -2,7 +2,7 @@ defmodule Kandis.MixProject do
   use Mix.Project
 
   # use "bump_ex messagel" - command instead
-  @version ""
+  @version "0.3.34"
   def project do
     [
       app: :kandis,
