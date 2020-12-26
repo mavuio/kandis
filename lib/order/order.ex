@@ -44,6 +44,11 @@ defmodule Kandis.Order do
     |> add_product_subtotal(t(ordercart.lang, "order.subtotal"))
     |> @local_order.apply_delivery_cost(orderinfo)
     |> update_stats(orderinfo)
+    # |> pipe_when(
+    #   present?(@local_order.prepare_orderdata),
+    |> @local_order.prepare_orderdata(ordercart, orderinfo)
+    |> update_stats(orderinfo)
+    # )
     |> add_total(t(ordercart.lang, "order.total"))
     |> add_total_taxes(orderinfo)
   end

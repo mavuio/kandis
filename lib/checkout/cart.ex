@@ -3,6 +3,7 @@ defmodule Kandis.Cart do
 
   alias Kandis.LiveUpdates
 
+  import Kandis.KdHelpers
   @local_cart Application.get_env(:kandis, :local_cart)
 
   @moduledoc "
@@ -69,6 +70,29 @@ defmodule Kandis.Cart do
   def get_augmented_cart_record(vid, params \\ %{}) do
     get_cart_record(vid)
     |> @local_cart.augment_cart(params)
+  end
+
+  def get_augmented_cart_record_for_checkout(vid, params \\ %{}) do
+    get_augmented_cart_record(vid, params)
+    |> update_in([:items], fn a ->
+      a |> Enum.filter(fn a -> not present?(a[:hide_in_checkout]) end)
+    end)
+    |> count_totals(params)
+  end
+
+  def count_totals(cart_record, _params) do
+    stats =
+      cart_record.items
+      |> Enum.reduce(%{total_items: 0, total_price: "0"}, fn el, acc ->
+        acc
+        |> update_in([:total_items], fn val -> val + el.amount end)
+        |> update_in([:total_price], fn val ->
+          Decimal.add(val, el.total_price)
+        end)
+      end)
+
+    cart_record
+    |> Map.merge(stats)
   end
 
   def get_cart_record(vid) when is_binary(vid) do

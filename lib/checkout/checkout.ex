@@ -175,7 +175,7 @@ defmodule Kandis.Checkout do
   end
 
   def preview_order(vid, context) when is_binary(vid) do
-    cart = Cart.get_augmented_cart_record(vid, context)
+    cart = Cart.get_augmented_cart_record_for_checkout(vid, context)
     checkout_record = Kandis.Checkout.get_checkout_record(vid)
 
     orderinfo = Kandis.Checkout.create_orderinfo(checkout_record, vid)
@@ -186,7 +186,7 @@ defmodule Kandis.Checkout do
   end
 
   def create_order_from_checkout(vid, context) when is_binary(vid) do
-    cart = Cart.get_augmented_cart_record(vid, context)
+    cart = Cart.get_augmented_cart_record_for_checkout(vid, context)
 
     checkout_record = get_checkout_record(vid)
     orderinfo = create_orderinfo(checkout_record, vid)
