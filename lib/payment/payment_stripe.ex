@@ -140,12 +140,16 @@ defmodule Kandis.Payment.Stripe do
       %_{} = order ->
         # set order-nr in intent
 
-        set_order_nr_in_intent(order, attempt)
         Kandis.Order.finish_order(order.order_nr)
+
+        if attempt do
+          set_order_nr_in_intent(order, attempt)
+        end
+
         "order #{order.order_nr} successfully processed "
 
       _ ->
-        "order not found for #{vid}"
+        raise "payment_stripe: order not found for #{vid}"
     end
   end
 
