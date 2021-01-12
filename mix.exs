@@ -2,7 +2,7 @@ defmodule Kandis.MixProject do
   use Mix.Project
 
   # use "bump_ex messagel" - command instead
-  @version "0.3.35"
+  @version "0.3.36"
   def project do
     [
       app: :kandis,
@@ -35,7 +35,6 @@ defmodule Kandis.MixProject do
       # {:phoenix, "~> 1.4.0", only: :test},
       {:phoenix_live_view, "~> 0.15"},
       {:phoenix_html, "~> 2.11"},
-      {:pow, "~> 1.0.18", only: :test},
       {:httpoison, "~> 0.13 or ~> 1.0"},
       {:download, "~> 0.0.4"}
 

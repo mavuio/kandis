@@ -49,7 +49,7 @@ defmodule Kandis.Cart do
     }
   end
 
-  def generate_new_cart_id(), do: Pow.UUID.generate()
+  def generate_new_cart_id(), do: Ecto.UUID.generate()
 
   def store_cart_record_if_needed(%{items: _items} = cart_record, cart_or_vid) do
     if(is_vid?(cart_or_vid)) do
