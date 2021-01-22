@@ -2,10 +2,10 @@ defmodule Kandis.Payment.Stripe do
   @behaviour Kandis.Payment
 
   @providername "stripe"
-  def create_payment_attempt({amount, curr}, order_nr, _orderdata, orderinfo) do
+  def create_payment_attempt({amount, curr}, order_nr, orderdata, orderinfo) do
     #  total_price = orderdata.stats.total_price
 
-    data = update_or_create_intent({amount, curr}, get_stripe_payload(orderinfo), nil)
+    data = update_or_create_intent({amount, curr}, get_stripe_payload(orderdata, orderinfo), nil)
 
     %Kandis.PaymentAttempt{
       provider: @providername,
@@ -19,11 +19,15 @@ defmodule Kandis.Payment.Stripe do
         %Kandis.PaymentAttempt{} = attempt,
         {amount, curr},
         order_nr,
-        _orderdata,
+        orderdata,
         orderinfo
       ) do
     data =
-      update_or_create_intent({amount, curr}, get_stripe_payload(orderinfo), attempt.data["id"])
+      update_or_create_intent(
+        {amount, curr},
+        get_stripe_payload(orderdata, orderinfo),
+        attempt.data["id"]
+      )
 
     %Kandis.PaymentAttempt{
       provider: @providername,
@@ -33,11 +37,12 @@ defmodule Kandis.Payment.Stripe do
     }
   end
 
-  def get_stripe_payload(orderinfo) do
+  def get_stripe_payload(orderdata, orderinfo) when is_map(orderinfo) and is_map(orderdata) do
     %{
       # "metadata[cart]" =>
       #   Application.get_env(:evablut, :config)[:local_url] <> "/ex/be/cart/" <> vid,
       "metadata[visit_id]" => orderinfo[:vid],
+      "metadata[cart_id]" => orderdata[:cart_id],
       "description" => orderinfo[:email]
     }
   end
@@ -116,6 +121,7 @@ defmodule Kandis.Payment.Stripe do
     id = params["data"]["object"]["id"]
 
     vid = metadata["visit_id"]
+    cart_id = metadata["cart_id"]
 
     attempt = Kandis.Payment.get_attempt_by_id(id, vid)
 
@@ -125,17 +131,17 @@ defmodule Kandis.Payment.Stripe do
     msg =
       case type do
         "payment_intent.succeeded" ->
-          complete_order_for_vid(vid, attempt)
+          complete_order_for_cart_id(cart_id, attempt)
 
         _ ->
-          "event #{type} received for vid #{vid}"
+          "event #{type} received for cart_id #{cart_id}"
       end
 
     Plug.Conn.send_resp(conn, 200, "Kandis: #{DateTime.utc_now()}  #{msg}")
   end
 
-  def complete_order_for_vid(vid, attempt) do
-    order = Kandis.Order.get_current_order_for_vid(vid)
+  def complete_order_for_cart_id(cart_id, attempt) when is_binary(cart_id) do
+    order = Kandis.Order.get_by_cart_id(cart_id)
 
     case order do
       %_{} = order ->
@@ -150,7 +156,7 @@ defmodule Kandis.Payment.Stripe do
         "order #{order.order_nr} successfully processed "
 
       _ ->
-        raise "payment_stripe: order not found for #{vid}"
+        raise "payment_stripe: order not found for cartid #{cart_id}"
     end
   end
 
