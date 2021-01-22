@@ -76,6 +76,7 @@ defmodule Kandis.Payment.Stripe do
   def process_data_for_stripe_api(data, {amount, curr}) do
     centamount =
       Decimal.mult("#{amount}", 100)
+      |> Decimal.round()
       |> Decimal.to_integer()
 
     %{
