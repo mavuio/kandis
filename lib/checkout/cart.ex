@@ -250,6 +250,14 @@ defmodule Kandis.Cart do
     |> Map.get(:promocodes)
   end
 
+  def set_cart_id(cart_or_vid, new_cart_id) when is_binary(new_cart_id) do
+    cart_or_vid = sanitize_cart_or_vid(cart_or_vid)
+
+    get_cart_record(cart_or_vid)
+    |> put_in([:cart_id], new_cart_id)
+    |> store_cart_record_if_needed(cart_or_vid)
+  end
+
   def sanitize_cart_or_vid(number) when is_integer(number), do: to_string(number)
   def sanitize_cart_or_vid(val), do: val
 end
