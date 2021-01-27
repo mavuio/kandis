@@ -7,6 +7,7 @@ defmodule Kandis.Mock do
   def augment_cart(_, _), do: nil
   def get_max_for_sku(_), do: :infinity
   def redirect_to_default_step(_, _), do: nil
+  def create_orderhtml(_, _, _, _), do: nil
   def get_link_for_step(_, _), do: nil
   def get_next_step_link(_, _), do: nil
   def get_prev_step_link(_, _), do: nil

@@ -22,14 +22,18 @@ defmodule Kandis.Order do
 
   def create_orderhtml(orderdata, orderinfo, order_record \\ nil, mode \\ "order")
       when is_map(orderdata) and is_map(orderinfo) do
-    Phoenix.View.render(@server_view, "orderhtml.html", %{
-      orderdata: orderdata,
-      orderinfo: orderinfo,
-      order: order_record,
-      lang: orderdata.lang,
-      mode: mode,
-      invoicemode: mode == "invoice"
-    })
+    if function_exported?(@local_order, :create_orderhtml, 4) do
+      @local_order.create_orderhtml(orderdata, orderinfo, order_record, mode)
+    else
+      Phoenix.View.render(@server_view, "orderhtml.html", %{
+        orderdata: orderdata,
+        orderinfo: orderinfo,
+        order: order_record,
+        lang: orderdata.lang,
+        mode: mode,
+        invoicemode: mode == "invoice"
+      })
+    end
   end
 
   def create_orderdata(ordercart, orderinfo) when is_map(ordercart) and is_map(orderinfo) do
