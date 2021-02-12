@@ -156,6 +156,9 @@ defmodule Kandis.Pdfgenerator do
     body
     |> Kandis.KdHelpers.log("calling pdf-cloud-service POST #{url} api-key:#{api_key}", :info)
 
-    HTTPoison.post(url, body, Authorization: api_key)
+    HTTPoison.post(url, body, [{"Authorization", api_key}],
+      timeout: 60_000,
+      recv_timeout: 60_000
+    )
   end
 end
