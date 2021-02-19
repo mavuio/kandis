@@ -396,6 +396,7 @@ defmodule Kandis.Order do
     else
       _err -> get_by_order_nr(params["order_nr"])
     end
+    |> Kandis.KdHelpers.log("get_current_order_for_vid(#{vid})", :info)
   end
 
   def get_latest_order_for_vid(vid, params \\ %{}) when is_binary(vid) and is_map(params) do
