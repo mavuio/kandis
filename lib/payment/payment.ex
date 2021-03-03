@@ -34,17 +34,17 @@ defmodule Kandis.Payment do
 
   def process_callback(conn, _params), do: conn
 
-  def create_payment_attempt(providername, order_nr, orderdata, orderinfo) do
-    amount = orderdata.stats.total_price
+  def create_payment_attempt(providername, order_nr, orderitems, ordervars) do
+    amount = orderitems.stats.total_price
     curr = default_currency()
 
-    # vid = orderinfo.vid
+    # vid = ordervars.vid
 
     apply(get_module_name(providername), :create_payment_attempt, [
       {amount, curr},
       order_nr,
-      orderdata,
-      orderinfo
+      orderitems,
+      ordervars
     ])
   end
 
@@ -105,21 +105,22 @@ defmodule Kandis.Payment do
     |> List.first()
   end
 
-  def create_and_add_payment_attempt_for_provider(providername, order_nr, orderdata, orderinfo)
-      when is_binary(providername) and is_map(orderinfo) and is_map(orderdata) do
-    create_payment_attempt(providername, order_nr, orderdata, orderinfo)
-    |> add_payment_attempt(orderinfo.vid)
+  def create_and_add_payment_attempt_for_provider(providername, order_nr, orderitems, ordervars)
+      when is_binary(providername) and is_map(ordervars) and is_map(orderitems) do
+    create_payment_attempt(providername, order_nr, orderitems, ordervars)
+    |> add_payment_attempt(ordervars.vid)
   end
 
-  def get_or_create_payment_attempt_for_provider(providername, order_nr, orderdata, orderinfo)
-      when is_binary(providername) and is_map(orderinfo) and is_map(orderdata) do
-    case get_payment_attempt_for_provider(providername, orderinfo.vid) do
+  def get_or_create_payment_attempt_for_provider(providername, order_nr, orderitems, ordervars)
+      when is_binary(providername) and is_map(ordervars) and is_map(orderitems) do
+    case get_payment_attempt_for_provider(providername, ordervars.vid) do
       nil ->
-        create_payment_attempt(providername, order_nr, orderdata, orderinfo)
-        |> add_payment_attempt(orderinfo.vid)
+        create_payment_attempt(providername, order_nr, orderitems, ordervars)
+        |> add_payment_attempt(ordervars.vid)
 
       attempt ->
-        attempt |> update_payment_attempt_if_needed(orderinfo.vid, order_nr, orderdata, orderinfo)
+        attempt
+        |> update_payment_attempt_if_needed(ordervars.vid, order_nr, orderitems, ordervars)
     end
   end
 
@@ -133,21 +134,21 @@ defmodule Kandis.Payment do
         %PaymentAttempt{} = attempt,
         vid,
         order_nr,
-        orderdata,
-        orderinfo
+        orderitems,
+        ordervars
       )
-      when is_binary(vid) and is_map(orderinfo) and is_map(orderdata) do
-    amount = orderdata.stats.total_price
+      when is_binary(vid) and is_map(ordervars) and is_map(orderitems) do
+    amount = orderitems.stats.total_price
     curr = default_currency()
 
-    # vid = orderinfo.vid
+    # vid = ordervars.vid
 
     apply(get_module_name(attempt.provider), :update_payment_attempt_if_needed, [
       attempt,
       {amount, curr},
       order_nr,
-      orderdata,
-      orderinfo
+      orderitems,
+      ordervars
     ])
   end
 end

@@ -20,52 +20,52 @@ defmodule Kandis.Order do
   def t(lang_or_context, translation_key, variables \\ []),
     do: @translation_function.(lang_or_context, translation_key, variables)
 
-  def create_orderhtml(orderdata, orderinfo, order_record \\ nil, mode \\ "order")
-      when is_map(orderdata) and is_map(orderinfo) do
+  def create_orderhtml(orderitems, ordervars, order_record \\ nil, mode \\ "order")
+      when is_map(orderitems) and is_map(ordervars) do
     if function_exported?(@local_order, :create_orderhtml, 4) do
-      @local_order.create_orderhtml(orderdata, orderinfo, order_record, mode)
+      @local_order.create_orderhtml(orderitems, ordervars, order_record, mode)
     else
       Phoenix.View.render(@server_view, "orderhtml.html", %{
-        orderdata: orderdata,
-        orderinfo: orderinfo,
+        orderitems: orderitems,
+        ordervars: ordervars,
         order: order_record,
-        lang: orderdata.lang,
+        lang: orderitems.lang,
         mode: mode,
         invoicemode: mode == "invoice"
       })
     end
   end
 
-  def create_orderdata(ordercart, orderinfo) when is_map(ordercart) and is_map(orderinfo) do
+  def create_orderitems(ordercart, ordervars) when is_map(ordercart) and is_map(ordervars) do
     %{
       lineitems: [],
       stats: %{},
       lang: ordercart.lang,
       cart_id: ordercart.cart_id
     }
-    |> add_lineitems_from_cart(ordercart, orderinfo)
-    |> update_stats(orderinfo)
+    |> add_lineitems_from_cart(ordercart, ordervars)
+    |> update_stats(ordervars)
     |> add_product_subtotal(t(ordercart.lang, "order.subtotal"))
-    |> @local_order.apply_delivery_cost(orderinfo)
-    |> update_stats(orderinfo)
+    |> @local_order.apply_delivery_cost(ordervars)
+    |> update_stats(ordervars)
     # |> pipe_when(
-    #   present?(@local_order.prepare_orderdata),
-    |> @local_order.prepare_orderdata(ordercart, orderinfo)
-    |> update_stats(orderinfo)
+    #   present?(@local_order.prepare_orderitems),
+    |> @local_order.prepare_orderitems(ordercart, ordervars)
+    |> update_stats(ordervars)
     # )
     |> add_total(t(ordercart.lang, "order.total"))
-    |> add_total_taxes(orderinfo)
+    |> add_total_taxes(ordervars)
   end
 
-  def add_total_taxes(%{stats: stats} = orderdata, _orderinfo) do
-    orderdata
+  def add_total_taxes(%{stats: stats} = orderitems, _ordervars) do
+    orderitems
     |> update_in([:lineitems], fn lineitems ->
       new_lineitems =
         stats.taxrates
         |> Map.to_list()
         |> Enum.map(fn {taxrate, tax_stats} ->
           %{
-            title: t(orderdata.lang, "order.incl_tax", taxrate: taxrate),
+            title: t(orderitems.lang, "order.incl_tax", taxrate: taxrate),
             type: "total_tax",
             total_price: tax_stats.tax
           }
@@ -75,8 +75,8 @@ defmodule Kandis.Order do
     end)
   end
 
-  def add_product_subtotal(%{stats: stats} = orderdata, title) when is_binary(title) do
-    orderdata
+  def add_product_subtotal(%{stats: stats} = orderitems, title) when is_binary(title) do
+    orderitems
     |> update_in([:lineitems], fn lineitems ->
       new_lineitem = %{
         title: title,
@@ -88,8 +88,8 @@ defmodule Kandis.Order do
     end)
   end
 
-  def add_total(%{stats: stats} = orderdata, title) when is_binary(title) do
-    orderdata
+  def add_total(%{stats: stats} = orderitems, title) when is_binary(title) do
+    orderitems
     |> update_in([:lineitems], fn lineitems ->
       new_lineitem = %{
         title: title,
@@ -112,24 +112,24 @@ defmodule Kandis.Order do
     end
   end
 
-  def add_lineitems_from_cart(orderdata, %{items: cartitems} = _ordercart, orderinfo)
-      when is_map(orderinfo) do
-    orderdata
+  def add_lineitems_from_cart(orderitems, %{items: cartitems} = _ordercart, ordervars)
+      when is_map(ordervars) do
+    orderitems
     |> update_in([:lineitems], fn lineitems ->
       new_lineitems =
         cartitems
-        |> Enum.map(&@local_order.create_lineitem_from_cart_item(&1, orderinfo))
+        |> Enum.map(&@local_order.create_lineitem_from_cart_item(&1, ordervars))
         |> Enum.filter(&Kandis.KdHelpers.present?/1)
 
       lineitems ++ new_lineitems
     end)
   end
 
-  def update_stats(orderdata, _orderinfo) do
-    orderdata
+  def update_stats(orderitems, _ordervars) do
+    orderitems
     |> update_in([:stats], fn stats ->
       stats
-      |> Map.merge(get_stats_for_lineitems(orderdata.lineitems))
+      |> Map.merge(get_stats_for_lineitems(orderitems.lineitems))
     end)
   end
 
@@ -182,6 +182,85 @@ defmodule Kandis.Order do
     |> Map.new()
   end
 
+  def update_ordervars(order_nr, new_ordervars)
+      when is_map(new_ordervars) and is_binary(order_nr) do
+    order = get_by_order_nr(order_nr)
+
+    updated_ordervars =
+      order.ordervars
+      |> Map.merge(new_ordervars)
+
+    store_archive_version(order.order_nr)
+
+    {:ok, updated_order} =
+      order
+      |> Ecto.Changeset.change(%{ordervars: updated_ordervars})
+      |> @repo.update()
+
+    msg = "updated some order-variables"
+    payload = %{new_ordervars: new_ordervars, diff: generate_diff(order, updated_order)}
+    store_history_entry(order.order_nr, payload, msg)
+  end
+
+  def generate_diff(order, updated_order) do
+    MapDiff.diff(order |> clean_for_diff(), updated_order |> clean_for_diff())
+  end
+
+  def clean_for_diff(order) when is_map(order) do
+    Map.from_struct(order)
+    |> Map.drop(~w(inserted_at updated_at archive history)a)
+  end
+
+  def store_history_entry(order_nr, payload, msg)
+      when is_map(payload) and is_binary(msg) and is_binary(order_nr) do
+    order = get_by_order_nr(order_nr)
+    history_record = create_history_record(order, payload, msg)
+
+    order
+    |> Ecto.Changeset.change(%{history: (order.history || []) ++ [history_record]})
+    |> @repo.update()
+  end
+
+  def store_archive_version(order_nr) when is_binary(order_nr) do
+    order = get_by_order_nr(order_nr)
+    version_record = create_version_record(order)
+
+    order
+    |> Ecto.Changeset.change(%{archive: (order.archive || []) ++ [version_record]})
+    |> @repo.update()
+  end
+
+  def erase_archive(order_nr) when is_binary(order_nr) do
+    order = get_by_order_nr(order_nr)
+    version_record = create_version_record(order)
+
+    order
+    |> Ecto.Changeset.change(%{archive: []})
+    |> @repo.update()
+
+    {:ok, version_record}
+  end
+
+  def create_version_record(order) when is_map(order) do
+    order
+    |> Map.take(~w(ordervars orderitems state)a)
+    |> Map.put(:_ts, create_version_timestamp())
+  end
+
+  def create_history_record(order, payload, msg)
+      when is_map(payload) and is_binary(msg) and is_map(order) do
+    payload
+    |> Map.put(:_ts, create_version_timestamp())
+    |> Map.put(:_msg, msg)
+  end
+
+  def create_version_timestamp(),
+    do:
+      DateTime.utc_now()
+      |> DateTime.truncate(:second)
+      |> to_string()
+      |> String.replace_suffix("Z", "")
+
   def create_taxrate_stats_entry_for_item(item) do
     taxfactor = Decimal.div(item.taxrate, 100)
     gross = item.total_price
@@ -190,8 +269,8 @@ defmodule Kandis.Order do
     %{tax: tax, net: net, gross: gross}
   end
 
-  def extract_shipping_address_fields(orderinfo) when is_map(orderinfo) do
-    orderinfo
+  def extract_shipping_address_fields(ordervars) when is_map(ordervars) do
+    ordervars
     |> Map.to_list()
     |> Enum.filter(&String.starts_with?(to_string(elem(&1, 0)), "shipping_"))
     |> Enum.map(fn {key, val} ->
@@ -202,8 +281,8 @@ defmodule Kandis.Order do
 
   def atomize_maps(rec) when is_map(rec) do
     rec
-    |> update_in([:orderdata], &AtomicMap.convert(&1, safe: true, ignore: true))
-    |> update_in([:orderinfo], &AtomicMap.convert(&1, safe: true, ignore: true))
+    |> update_in([:orderitems], &AtomicMap.convert(&1, safe: true, ignore: true))
+    |> update_in([:ordervars], &AtomicMap.convert(&1, safe: true, ignore: true))
   end
 
   def atomize_maps(val), do: val
@@ -249,9 +328,9 @@ defmodule Kandis.Order do
     order
   end
 
-  def create_new_order(orderdata, orderinfo) do
+  def create_new_order(orderitems, ordervars) do
     @repo.transaction(fn ->
-      data = create_order_record_from_checkout(orderdata, orderinfo)
+      data = create_order_record_from_checkout(orderitems, ordervars)
 
       struct(@order_record)
       |> @order_record.changeset(data)
@@ -287,7 +366,7 @@ defmodule Kandis.Order do
   end
 
   def decrement_stock_for_order(%_{} = order) do
-    order.orderdata.lineitems
+    order.orderitems.lineitems
     |> Enum.filter(&(&1.type == "product"))
     |> Enum.map(&decrement_stock_for_sku(&1.sku, &1.amount, order))
 
@@ -303,25 +382,25 @@ defmodule Kandis.Order do
     @local_order.update_stock(order)
   end
 
-  def create_order_record_from_checkout(orderdata, orderinfo)
-      when is_map(orderdata) and is_map(orderinfo) do
+  def create_order_record_from_checkout(orderitems, ordervars)
+      when is_map(orderitems) and is_map(ordervars) do
     %{
-      orderinfo: orderinfo,
-      orderdata: orderdata,
-      cart_id: orderdata.cart_id,
-      order_nr: create_new_order_nr(is_testorder?(orderdata, orderinfo)),
+      ordervars: ordervars,
+      orderitems: orderitems,
+      cart_id: orderitems.cart_id,
+      order_nr: create_new_order_nr(is_testorder?(orderitems, ordervars)),
       state: "created",
-      user_id: orderinfo[:user_id],
-      email: orderinfo[:email],
-      payment_type: orderinfo[:payment_type],
-      delivery_type: orderinfo[:delivery_type],
-      shipping_country: Checkout.get_shipping_country(orderinfo),
-      total_price: array_get(orderdata, [:stats, :total_price])
+      user_id: ordervars[:user_id],
+      email: ordervars[:email],
+      payment_type: ordervars[:payment_type],
+      delivery_type: ordervars[:delivery_type],
+      shipping_country: Checkout.get_shipping_country(ordervars),
+      total_price: array_get(orderitems, [:stats, :total_price])
     }
   end
 
-  def is_testorder?(orderdata, _orderinfo) do
-    Decimal.lt?(array_get(orderdata, [:stats, :total_price], 100), 5)
+  def is_testorder?(orderitems, _ordervars) do
+    Decimal.lt?(array_get(orderitems, [:stats, :total_price], 100), 5)
   end
 
   def create_new_order_nr(is_testmode \\ false) do
@@ -386,7 +465,7 @@ defmodule Kandis.Order do
   end
 
   def get_orderhtml(%_{} = order, mode \\ "order") do
-    create_orderhtml(order.orderdata, order.orderinfo, order, mode)
+    create_orderhtml(order.orderitems, order.ordervars, order, mode)
   end
 
   def get_current_order_for_vid(vid, params \\ %{}) when is_binary(vid) and is_map(params) do
@@ -529,7 +608,6 @@ defmodule Kandis.Order do
     invlike = "#{prefix}%"
 
     @order_record
-    |> Ecto.Query.where([o], like(o.invoice_nr, ^invlike))
     |> @repo.aggregate(:max, :invoice_nr)
     |> if_nil("#{prefix}#{10000}")
   end

@@ -89,17 +89,17 @@ defmodule Kandis.Checkout do
     map |> Map.new(fn {k, v} -> {to_string(k), v} end)
   end
 
-  def create_ordercart(cart, lang \\ "en", orderinfo \\ %{})
+  def create_ordercart(cart, lang \\ "en", ordervars \\ %{})
 
-  def create_ordercart(cart, lang, orderinfo) when is_map(cart) do
-    @local_checkout.create_ordercart(cart, lang, orderinfo)
+  def create_ordercart(cart, lang, ordervars) when is_map(cart) do
+    @local_checkout.create_ordercart(cart, lang, ordervars)
     |> Map.put(:lang, lang)
   end
 
   def create_ordercart(_, _, _), do: nil
 
-  def create_orderinfo(checkout_record, vid) when is_map(checkout_record) and is_binary(vid) do
-    @local_checkout.create_orderinfo(checkout_record)
+  def create_ordervars(checkout_record, vid) when is_map(checkout_record) and is_binary(vid) do
+    @local_checkout.create_ordervars(checkout_record)
     |> Map.put(:vid, vid)
   end
 
@@ -148,12 +148,12 @@ defmodule Kandis.Checkout do
     @local_checkout.get_cart_basepath(params)
   end
 
-  def get_shipping_country(orderinfo) when is_map(orderinfo) do
-    @local_checkout.get_shipping_country(orderinfo)
+  def get_shipping_country(ordervars) when is_map(ordervars) do
+    @local_checkout.get_shipping_country(ordervars)
   end
 
   def reset_checkout(order) do
-    vid = order.orderinfo.vid
+    vid = order.ordervars.vid
     cart_id = order.cart_id
 
     # check if vid still contains cart_id, only proceed if this is true
@@ -178,22 +178,22 @@ defmodule Kandis.Checkout do
     cart = Cart.get_augmented_cart_record_for_checkout(vid, context)
     checkout_record = Kandis.Checkout.get_checkout_record(vid)
 
-    orderinfo = Kandis.Checkout.create_orderinfo(checkout_record, vid)
-    ordercart = Kandis.Checkout.create_ordercart(cart, context["lang"], orderinfo)
-    orderdata = Order.create_orderdata(ordercart, orderinfo)
-    orderhtml = Order.create_orderhtml(orderdata, orderinfo)
-    {orderdata, orderinfo, orderhtml}
+    ordervars = Kandis.Checkout.create_ordervars(checkout_record, vid)
+    ordercart = Kandis.Checkout.create_ordercart(cart, context["lang"], ordervars)
+    orderitems = Order.create_orderitems(ordercart, ordervars)
+    orderhtml = Order.create_orderhtml(orderitems, ordervars)
+    {orderitems, ordervars, orderhtml}
   end
 
   def create_order_from_checkout(vid, context) when is_binary(vid) do
     cart = Cart.get_augmented_cart_record_for_checkout(vid, context)
 
     checkout_record = get_checkout_record(vid)
-    orderinfo = create_orderinfo(checkout_record, vid)
+    ordervars = create_ordervars(checkout_record, vid)
 
-    ordercart = create_ordercart(cart, context["lang"], orderinfo)
-    orderdata = Order.create_orderdata(ordercart, orderinfo)
+    ordercart = create_ordercart(cart, context["lang"], ordervars)
+    orderitems = Order.create_orderitems(ordercart, ordervars)
 
-    Kandis.Order.create_new_order(orderdata, orderinfo)
+    Kandis.Order.create_new_order(orderitems, ordervars)
   end
 end

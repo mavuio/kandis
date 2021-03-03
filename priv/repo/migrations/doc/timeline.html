@@ -24,13 +24,13 @@
 
         {review}:
             Layout:
-                [{sessiondata_review}sessiondata][orderinfo]
+                [{sessiondata_review}sessiondata][ordervars]
                 [orderlines]...[orderhtml]
             Relate:
                 {sessiondata_review}.[cart]->[orderlines] :"Kandis.Cart":
-                {sessiondata_review}.[checkout_record]->[orderinfo] "Kandis.Checkout":
+                {sessiondata_review}.[checkout_record]->[ordervars] "Kandis.Checkout":
                 [orderlines]->[orderhtml]
-                [orderinfo]->[orderhtml]
+                [ordervars]->[orderhtml]
         {sessiondata_review}:  
             Layout:
                     [cart][checkout_record]
@@ -42,15 +42,15 @@
         {freeze}:
             Layout:
                 [{sessiondata_freeze}sessiondata]
-                [orderlines][orderinfo]
+                [orderlines][ordervars]
                 [{new_order_freeze}New Order][{old_order_freeze}Old Order w. status pending]
             Define:
                 ➜ redirect to step_payment
             Relate:
                 {sessiondata_freeze}.[cart]->[orderlines]
-                {sessiondata_freeze}.[checkout_record]->[orderinfo]
+                {sessiondata_freeze}.[checkout_record]->[ordervars]
                 [orderlines]->{new_order_freeze}
-                [orderinfo]->{new_order_freeze}
+                [ordervars]->{new_order_freeze}
 
         {sessiondata_freeze}:  
             Layout:
@@ -89,7 +89,7 @@
 
         {order_record_payment}:  
             Layout:
-                [orderlines][orderinfo]
+                [orderlines][ordervars]
 
         {payment_data_payment}:  
             Layout:
@@ -103,15 +103,15 @@
                 [orderhtml]
             Relate:
                 {order_record_finished}.[cart]->[orderlines]
-                {order_record_finished}.[checkout_record]->[orderinfo]
+                {order_record_finished}.[checkout_record]->[ordervars]
                  {order_record_finished}.[orderlines]->[orderhtml]
-                 {order_record_finished}.[orderinfo]->[orderhtml]
+                 {order_record_finished}.[ordervars]->[orderhtml]
                  {order_record_finished}->[orderhtml]
 
                  
         {order_record_finished}:  
             Layout:
-                    [orderlines][orderinfo]
+                    [orderlines][ordervars]
         {orderlines_finished}:  
             Layout:
                     [cart][checkout_record]
@@ -131,10 +131,10 @@
                 [orderhtml]->{email_callback}
         {order_record_callback}:  
             Layout:
-                    [orderlines][orderinfo]
+                    [orderlines][ordervars]
         {order_record_callback_after}:  
             Layout:
-                    [orderlines]...[orderinfo]
+                    [orderlines]...[ordervars]
                     [orderhtml_cache][payment-provider-data]
             Define:
                 - status: paid

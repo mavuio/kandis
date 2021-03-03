@@ -5,15 +5,15 @@ defmodule Kandis.Payment.Sofort do
   import Kandis.KdHelpers
 
   @providername "sofort"
-  def create_payment_attempt({amount, curr}, order_nr, orderdata, orderinfo) do
+  def create_payment_attempt({amount, curr}, order_nr, orderitems, ordervars) do
     # process sofort.com payment
-    data = generate_payment_data({amount, curr}, order_nr, orderdata, orderinfo)
+    data = generate_payment_data({amount, curr}, order_nr, orderitems, ordervars)
 
     nil |> Kandis.KdHelpers.log("SOFORT payment data generated", :info)
     payment_url = Kandis.KdHelpers.array_get(data, ["new_transaction", "payment_url"])
     id = Kandis.KdHelpers.array_get(data, ["new_transaction", "transaction"])
 
-    # data = update_or_create_intent({amount, curr}, get_stripe_payload(orderinfo), nil)
+    # data = update_or_create_intent({amount, curr}, get_stripe_payload(ordervars), nil)
 
     %Kandis.PaymentAttempt{
       provider: @providername,
@@ -76,8 +76,8 @@ defmodule Kandis.Payment.Sofort do
     end
   end
 
-  def generate_payment_data({amount, curr}, order_nr, orderdata, orderinfo) do
-    generate_request_xml({amount, curr}, order_nr, orderdata, orderinfo)
+  def generate_payment_data({amount, curr}, order_nr, orderitems, ordervars) do
+    generate_request_xml({amount, curr}, order_nr, orderitems, ordervars)
     |> Kandis.KdHelpers.log("generate_payment_data REQUESTXML", :info)
     |> make_request()
     |> case do
@@ -89,10 +89,10 @@ defmodule Kandis.Payment.Sofort do
     end
   end
 
-  def generate_request_xml({amount, curr}, order_nr, orderdata, orderinfo) do
+  def generate_request_xml({amount, curr}, order_nr, orderitems, ordervars) do
     project_id = Application.get_env(:kandis, :sofort)[:project_id]
 
-    lang = orderdata[:lang]
+    lang = orderitems[:lang]
 
     next_url =
       (Application.get_env(:kandis, :sofort)[:local_baseurl] <>
@@ -101,11 +101,11 @@ defmodule Kandis.Payment.Sofort do
 
     notification_url =
       (Application.get_env(:kandis, :sofort)[:local_baseurl] <>
-         "/checkout/callback/sofort" <> "?vid=#{orderinfo.vid}")
+         "/checkout/callback/sofort" <> "?vid=#{ordervars.vid}")
       |> String.replace(".test/", "/")
 
     payment_reason =
-      orderdata[:payment_reason]
+      orderitems[:payment_reason]
       |> if_nil(Application.get_env(:kandis, :sofort)[:payment_reason])
       |> if_nil("Online - Order")
 
@@ -121,8 +121,8 @@ defmodule Kandis.Payment.Sofort do
                   <reason><%= order_nr %></reason>
             </reasons>
             <user_variables>
-                  <vid><%= orderinfo.vid %></vid>
-                  <cart_id><%= orderdata.cart_id %></cart_id>
+                  <vid><%= ordervars.vid %></vid>
+                  <cart_id><%= orderitems.cart_id %></cart_id>
             </user_variables>
             <success_url><%= next_url %>?status=success&amp;order_nr=<%= order_nr %></success_url>
             <success_link_redirect>1</success_link_redirect>

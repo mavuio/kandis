@@ -2,10 +2,10 @@ defmodule Kandis.Payment.Stripe do
   @behaviour Kandis.Payment
 
   @providername "stripe"
-  def create_payment_attempt({amount, curr}, order_nr, orderdata, orderinfo) do
-    #  total_price = orderdata.stats.total_price
+  def create_payment_attempt({amount, curr}, order_nr, orderitems, ordervars) do
+    #  total_price = orderitems.stats.total_price
 
-    data = update_or_create_intent({amount, curr}, get_stripe_payload(orderdata, orderinfo), nil)
+    data = update_or_create_intent({amount, curr}, get_stripe_payload(orderitems, ordervars), nil)
 
     %Kandis.PaymentAttempt{
       provider: @providername,
@@ -19,13 +19,13 @@ defmodule Kandis.Payment.Stripe do
         %Kandis.PaymentAttempt{} = attempt,
         {amount, curr},
         order_nr,
-        orderdata,
-        orderinfo
+        orderitems,
+        ordervars
       ) do
     data =
       update_or_create_intent(
         {amount, curr},
-        get_stripe_payload(orderdata, orderinfo),
+        get_stripe_payload(orderitems, ordervars),
         attempt.data["id"]
       )
 
@@ -37,13 +37,13 @@ defmodule Kandis.Payment.Stripe do
     }
   end
 
-  def get_stripe_payload(orderdata, orderinfo) when is_map(orderinfo) and is_map(orderdata) do
+  def get_stripe_payload(orderitems, ordervars) when is_map(ordervars) and is_map(orderitems) do
     %{
       # "metadata[cart]" =>
       #   Application.get_env(:evablut, :config)[:local_url] <> "/ex/be/cart/" <> vid,
-      "metadata[visit_id]" => orderinfo[:vid],
-      "metadata[cart_id]" => orderdata[:cart_id],
-      "description" => orderinfo[:email]
+      "metadata[visit_id]" => ordervars[:vid],
+      "metadata[cart_id]" => orderitems[:cart_id],
+      "description" => ordervars[:email]
     }
   end
 

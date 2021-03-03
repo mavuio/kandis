@@ -5,10 +5,10 @@ defmodule Kandis.Payment.Klarna do
 
   @providername "klarna"
 
-  def create_payment_attempt({_amount, _curr}, order_nr, orderdata, orderinfo) do
-    #  total_price = orderdata.stats.total_price
+  def create_payment_attempt({_amount, _curr}, order_nr, orderitems, ordervars) do
+    #  total_price = orderitems.stats.total_price
 
-    payload = get_klarna_payload(orderdata, orderinfo)
+    payload = get_klarna_payload(orderitems, ordervars)
 
     data = create_klarna_session(payload)
 
@@ -24,10 +24,10 @@ defmodule Kandis.Payment.Klarna do
         %Kandis.PaymentAttempt{} = attempt,
         {_amount, _curr},
         _order_nr,
-        orderdata,
-        orderinfo
+        orderitems,
+        ordervars
       ) do
-    payload = get_klarna_payload(orderdata, orderinfo)
+    payload = get_klarna_payload(orderitems, ordervars)
 
     update_klarna_session(payload, attempt.id)
 
@@ -71,7 +71,7 @@ defmodule Kandis.Payment.Klarna do
   def place_order(authorization_token, order)
       when is_map(order) and is_binary(authorization_token) do
     payload =
-      get_klarna_payload(order.orderdata, order.orderinfo)
+      get_klarna_payload(order.orderitems, order.ordervars)
       |> Map.merge(%{
         "merchant_reference1" => order.order_nr,
         "merchant_reference2" => order.cart_id
@@ -114,8 +114,8 @@ defmodule Kandis.Payment.Klarna do
     make_request("/payments/v1/sessions/#{session_id}", :get)
   end
 
-  def get_taxamount_from_orderdata(orderdata) when is_map(orderdata) do
-    orderdata.stats.taxrates
+  def get_taxamount_from_orderitems(orderitems) when is_map(orderitems) do
+    orderitems.stats.taxrates
     |> Map.to_list()
     |> Enum.reduce("0", fn {_taxrate, tax_stats}, acc ->
       Decimal.add(acc, tax_stats.tax)
@@ -173,26 +173,26 @@ defmodule Kandis.Payment.Klarna do
     end)
   end
 
-  def get_klarna_payload(orderdata, orderinfo) do
-    taxamount = get_taxamount_from_orderdata(orderdata)
+  def get_klarna_payload(orderitems, ordervars) do
+    taxamount = get_taxamount_from_orderitems(orderitems)
 
     %{
       "purchase_country" => "AT",
       "purchase_currency" => "EUR",
       "locale" => "de-AT",
-      "order_amount" => centify(orderdata.stats.total_price),
+      "order_amount" => centify(orderitems.stats.total_price),
       "order_tax_amount" => centify(taxamount),
-      "order_lines" => get_order_lines_for_klarna(orderdata.lineitems),
+      "order_lines" => get_order_lines_for_klarna(orderitems.lineitems),
       "billing_address" => %{
-        "given_name" => orderinfo[:first_name],
-        "family_name" => orderinfo[:last_name],
-        "email" => orderinfo[:email],
-        "street_address" => orderinfo[:street],
+        "given_name" => ordervars[:first_name],
+        "family_name" => ordervars[:last_name],
+        "email" => ordervars[:email],
+        "street_address" => ordervars[:street],
         # "street_address2" => nil,
-        "postal_code" => orderinfo[:zip],
-        "city" => orderinfo[:city],
-        "phone" => orderinfo[:phone],
-        "country" => orderinfo[:country]
+        "postal_code" => ordervars[:zip],
+        "city" => ordervars[:city],
+        "phone" => ordervars[:phone],
+        "country" => ordervars[:country]
       }
     }
   end

@@ -41,21 +41,21 @@
             Layout:
             [{create_ordercart}create_ordercart()][{get_checkout_record}get_checkout_record()]
             Relate:
-             {get_checkout_record}->{create_orderinfo}
+             {get_checkout_record}->{create_ordervars}
              {create_ordercart}->{create_orderlines}
              {vs_co}->{get_checkout_record}
 
         {ORDER}:
             Layout:
-            [{create_orderlines}create_orderlines( ordercart, orderinfo)][{create_orderinfo}create_orderinfo( checkout_record)]
-            [{create_new_order}create_new_order()]...[{create_orderhtml}create_orderhtml(orderlines, orderinfo, order_record)]
+            [{create_orderlines}create_orderlines( ordercart, ordervars)][{create_ordervars}create_ordervars( checkout_record)]
+            [{create_new_order}create_new_order()]...[{create_orderhtml}create_orderhtml(orderlines, ordervars, order_record)]
 
             Relate:
              {create_orderlines}->{create_new_order}
              {create_orderlines}*{orderlines}
-             {create_orderinfo}->{create_orderlines}
-             {create_orderinfo}->{create_new_order}
-             {create_orderinfo}*{orderinfo}
+             {create_ordervars}->{create_orderlines}
+             {create_ordervars}->{create_new_order}
+             {create_ordervars}*{ordervars}
              {create_orderhtml}*{invoicehtml}
              {create_new_order}->{orderrecord}
 
@@ -76,14 +76,14 @@
         {orderrecord}:
   
         Layout:
-            [{orderlines}orderlines][{orderinfo}orderinfo]
+            [{orderlines}orderlines][{ordervars}ordervars]
             [{invoicehtml}invoicehtml_archive]
         Define:
             • id
             • order_nr
             • invoice_nr
 
-        {orderinfo}:
+        {ordervars}:
             Define:
                 • sid
                 • email
