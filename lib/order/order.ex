@@ -208,7 +208,6 @@ defmodule Kandis.Order do
     # diff: generate_diff(order, updated_order)
     "5" |> IO.inspect(label: "mwuits-debug 2021-03-04_00:44 ")
     store_history_entry(order.order_nr, payload, msg)
-    "6" |> IO.inspect(label: "mwuits-debug 2021-03-04_00:44 ")
   end
 
   def generate_diff(order, updated_order) do
