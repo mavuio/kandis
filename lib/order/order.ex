@@ -190,16 +190,26 @@ defmodule Kandis.Order do
       order.ordervars
       |> Map.merge(new_ordervars)
 
+    "1" |> IO.inspect(label: "mwuits-debug 2021-03-04_00:44 ")
     store_archive_version(order.order_nr)
 
-    {:ok, updated_order} =
-      order
-      |> Ecto.Changeset.change(%{ordervars: updated_ordervars})
-      |> @repo.update()
+    "2" |> IO.inspect(label: "mwuits-debug 2021-03-04_00:44 ")
+
+    {:ok, updated_order} = "3" |> IO.inspect(label: "mwuits-debug 2021-03-04_00:44 ")
+
+    "3" |> IO.inspect(label: "mwuits-debug 2021-03-04_00:44 ")
+
+    order
+    |> Ecto.Changeset.change(%{ordervars: updated_ordervars})
+    |> @repo.update()
+
+    "4" |> IO.inspect(label: "mwuits-debug 2021-03-04_00:44 ")
 
     msg = "updated some order-variables"
     payload = %{new_ordervars: new_ordervars, diff: generate_diff(order, updated_order)}
+    "5" |> IO.inspect(label: "mwuits-debug 2021-03-04_00:44 ")
     store_history_entry(order.order_nr, payload, msg)
+    "6" |> IO.inspect(label: "mwuits-debug 2021-03-04_00:44 ")
   end
 
   def generate_diff(order, updated_order) do
