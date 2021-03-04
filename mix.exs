@@ -2,7 +2,7 @@ defmodule Kandis.MixProject do
   use Mix.Project
 
   # use "bump_ex messagel" - command instead
-  @version "0.4.4"
+  @version "0.4.5"
   def project do
     [
       app: :kandis,
@@ -37,7 +37,8 @@ defmodule Kandis.MixProject do
       {:phoenix_html, "~> 2.11"},
       {:httpoison, "~> 0.13 or ~> 1.0"},
       {:download, "~> 0.0.4"},
-      {:map_diff, "~> 1.3"}
+      {:map_diff, "~> 1.3"},
+      {:jason, ">= 0.0.0"}
 
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}

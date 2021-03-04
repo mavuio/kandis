@@ -190,23 +190,21 @@ defmodule Kandis.Order do
       order.ordervars
       |> Map.merge(new_ordervars)
 
-    "1" |> IO.inspect(label: "mwuits-debug 2021-03-04_00:44 ")
     store_archive_version(order.order_nr)
 
-    "2" |> IO.inspect(label: "mwuits-debug 2021-03-04_00:44 ")
+    changes =
+      %{ordervars: updated_ordervars}
+      |> Map.merge(get_toplevel_order_fields(order.orderitems, updated_ordervars))
 
     {:ok, _updated_order} =
       order
-      |> Ecto.Changeset.change(%{ordervars: updated_ordervars})
+      |> Ecto.Changeset.change(changes)
+      |> Ecto.Changeset.change(%{version: order.version + 1})
       |> @repo.update()
 
-    "3" |> IO.inspect(label: "mwuits-debug 2021-03-04_00:44 ")
-
     msg = "updated some order-variables"
-    "4" |> IO.inspect(label: "mwuits-debug 2021-03-04_00:44 ")
     payload = %{new_ordervars: new_ordervars}
     # diff: generate_diff(order, updated_order)
-    "5" |> IO.inspect(label: "mwuits-debug 2021-03-04_00:44 ")
     store_history_entry(order.order_nr, payload, msg)
   end
 
@@ -249,15 +247,27 @@ defmodule Kandis.Order do
     {:ok, version_record}
   end
 
+  def erase_history(order_nr) when is_binary(order_nr) do
+    order = get_by_order_nr(order_nr)
+    version_record = create_version_record(order)
+
+    order
+    |> Ecto.Changeset.change(%{history: []})
+    |> @repo.update()
+
+    {:ok, version_record}
+  end
+
   def create_version_record(order) when is_map(order) do
     order
-    |> Map.take(~w(ordervars orderitems state)a)
+    |> Map.take(~w(ordervars orderitems state version)a)
     |> Map.put(:_ts, create_version_timestamp())
   end
 
   def create_history_record(order, payload, msg)
       when is_map(payload) and is_binary(msg) and is_map(order) do
     payload
+    |> Map.put(:_version, order.version)
     |> Map.put(:_ts, create_version_timestamp())
     |> Map.put(:_msg, msg)
   end
@@ -407,6 +417,18 @@ defmodule Kandis.Order do
     }
   end
 
+  def get_toplevel_order_fields(orderitems, ordervars)
+      when is_map(orderitems) and is_map(ordervars) do
+    %{
+      email: ordervars[:email],
+      payment_type: ordervars[:payment_type],
+      delivery_type: ordervars[:delivery_type],
+      shipping_country: Checkout.get_shipping_country(ordervars),
+      total_price: to_dec(array_get(orderitems, [:stats, :total_price])),
+      tags: ordervars[:tags]
+    }
+  end
+
   def is_testorder?(orderitems, _ordervars) do
     Decimal.lt?(array_get(orderitems, [:stats, :total_price], 100), 5)
   end
@@ -513,33 +535,19 @@ defmodule Kandis.Order do
 
   def get_order_file(any_id, "invoice" = mode, params)
       when is_binary(any_id) or is_integer(any_id) do
-    get_by_any_id(any_id)
-    |> case do
+    order = get_by_any_id(any_id)
+
+    case order do
       %{invoice_nr: invoice_nr} when is_binary(invoice_nr) -> {:ok, invoice_nr}
       %{order_nr: order_nr} -> create_and_assign_new_invoice_nr_for_order(order_nr)
     end
-    |> case do
-      {:ok, invoice_nr} ->
-        Pdfgenerator.get_pdf_file_for_invoice_nr(invoice_nr, mode, params)
 
-        # {:error, error} ->
-        #   raise "get_invoice_url received error:" <> inspect(error)
-    end
+    Pdfgenerator.get_pdf_file_for_order_nr(order.order_nr, order.version, mode, params)
   end
 
   def get_order_file(any_id, mode, params) when is_binary(any_id) or is_integer(any_id) do
-    get_by_any_id(any_id)
-    |> case do
-      %{order_nr: order_nr} -> {:ok, order_nr}
-      _ -> nil
-    end
-    |> case do
-      {:ok, order_nr} ->
-        Pdfgenerator.get_pdf_file_for_order_nr(order_nr, mode, params)
-
-        # {:error, error} ->
-        #   raise "get_invoice_url received error:" <> inspect(error)
-    end
+    order = get_by_any_id(any_id)
+    Pdfgenerator.get_pdf_file_for_order_nr(order.order_nr, order.version, mode, params)
   end
 
   def get_invoice_url(any_id, params \\ %{}) when is_binary(any_id) or is_integer(any_id),
@@ -613,7 +621,7 @@ defmodule Kandis.Order do
   end
 
   def get_latest_invoice_nr(prefix) do
-    invlike = "#{prefix}%"
+    _invlike = "#{prefix}%"
 
     @order_record
     |> @repo.aggregate(:max, :invoice_nr)
@@ -643,5 +651,26 @@ defmodule Kandis.Order do
     |> Ecto.Query.where([r], r.updated_at <= ^expire_time)
     |> Ecto.Query.select([r], r.order_nr)
     |> @repo.all()
+  end
+
+  def get_history_list(order) when is_map(order) do
+    ([get_version_one_record(order)] ++
+       case order[:history] do
+         nil -> []
+         a -> a
+       end)
+    |> Enum.map(&AtomicMap.convert(&1, safe: true, ignore: true))
+  end
+
+  def get_version_one_record(order) do
+    %{
+      "_msg" => "order created",
+      "_ts" =>
+        order.inserted_at
+        |> NaiveDateTime.truncate(:second)
+        |> to_string()
+        |> String.replace_suffix("Z", ""),
+      "_version" => 1
+    }
   end
 end

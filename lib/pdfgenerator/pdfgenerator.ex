@@ -5,26 +5,35 @@ defmodule Kandis.Pdfgenerator do
 
   @get_pdf_template_url Application.get_env(:kandis, :get_pdf_template_url)
 
-  def get_pdf_file_for_invoice_nr(invoice_nr, mode, params \\ %{}) when is_binary(mode) do
-    filename = get_filename_for_invoice_nr(invoice_nr, mode)
+  # deprecated in 0.4.5
+  # def get_pdf_file_for_invoice_nr(invoice_nr, mode, params \\ %{}) when is_binary(mode) do
+  #   filename = get_filename_for_invoice_nr(invoice_nr, mode)
 
-    case File.exists?(filename) and is_nil(params["regenerate"]) do
-      true ->
-        filename
+  #   case File.exists?(filename) and is_nil(params["regenerate"]) do
+  #     true ->
+  #       filename
 
-      false ->
-        generated_filename = generate_invoice_pdf(mode, invoice_nr)
+  #     false ->
+  #       generated_filename = generate_invoice_pdf(mode, invoice_nr)
 
-        if generated_filename == filename do
-          filename
-        else
-          raise "filenames do not match #{generated_filename} vs #{filename}"
-        end
-    end
-  end
+  #       if generated_filename == filename do
+  #         filename
+  #       else
+  #         raise "filenames do not match #{generated_filename} vs #{filename}"
+  #       end
+  #   end
+  # end
+  #
+  # def get_filename_for_invoice_nr(invoice_nr, mode)
+  #     when is_binary(invoice_nr) and is_binary(mode) do
+  #   pdf_dir = Application.get_env(:kandis, :pdf_dir)
+  #   filename = "#{mode}_#{invoice_nr}.pdf"
+  #   "#{pdf_dir}/#{filename}"
+  # end
 
-  def get_pdf_file_for_order_nr(order_nr, mode, params \\ %{}) when is_binary(mode) do
-    filename = get_filename_for_order_nr(order_nr, mode)
+  def get_pdf_file_for_order_nr(order_nr, version, mode, params \\ %{})
+      when is_integer(version) and is_binary(mode) do
+    filename = get_filename_for_order_nr(order_nr, version, mode)
 
     case File.exists?(filename) and is_nil(params["regenerate"]) do
       true ->
@@ -41,25 +50,80 @@ defmodule Kandis.Pdfgenerator do
     end
   end
 
-  def get_filename_for_invoice_nr(invoice_nr, mode)
-      when is_binary(invoice_nr) and is_binary(mode) do
+  def get_filename_for_order_nr(order_nr, version, mode)
+      when is_integer(version) and is_binary(order_nr) and
+             is_binary(mode) do
     pdf_dir = Application.get_env(:kandis, :pdf_dir)
-    filename = "#{mode}_#{invoice_nr}.pdf"
+
+    version_addon =
+      case version do
+        1 -> ""
+        v -> "_#{v}"
+      end
+
+    filename = "#{order_nr}#{version_addon}_#{mode}.pdf"
     "#{pdf_dir}/#{filename}"
   end
 
-  def get_filename_for_order_nr(order_nr, mode) when is_binary(order_nr) and is_binary(mode) do
+  def get_all_files_for_order_nr(order_nr) when is_binary(order_nr) do
     pdf_dir = Application.get_env(:kandis, :pdf_dir)
-    filename = "#{mode}_#{order_nr}.pdf"
-    "#{pdf_dir}/#{filename}"
+
+    Path.wildcard("#{pdf_dir}/#{order_nr}*.*")
+    |> Enum.map(&get_fileinfo/1)
+    |> Enum.filter(fn a -> a[:version] end)
+    |> Enum.sort_by(& &1.version)
   end
 
+  def get_fileinfo(path) do
+    File.stat(path)
+    |> case do
+      {:ok, stat} ->
+        %{
+          created_at: stat.ctime |> NaiveDateTime.from_erl!(),
+          size: stat.size
+        }
+
+      _ ->
+        %{}
+    end
+    |> Map.merge(parse_filename(path))
+  end
+
+  def parse_filename(path) when is_binary(path) do
+    filename = Path.basename(path)
+
+    {_ordernr, version, mode, extension} =
+      case String.split(filename, ~w( _ . )) do
+        [ordernr, mode, "pdf" = ext] ->
+          {ordernr, 1, mode, ext}
+
+        [ordernr, version, mode, "pdf" = ext] ->
+          {ordernr, version |> to_int(), mode, ext}
+
+        _ ->
+          {nil, nil, nil, nil}
+      end
+
+    %{
+      url: get_url_for_file(path),
+      filename: filename,
+      mode: mode,
+      version: version,
+      ext: extension
+    }
+  end
+
+  @spec generate_invoice_pdf(
+          binary,
+          binary | integer | %{:__struct__ => atom, optional(any) => any}
+        ) :: any
   def generate_invoice_pdf(mode, any_order_id) when is_binary(mode) do
     any_order_id |> Kandis.KdHelpers.log("generate_invoice_pdf #{mode}", :info)
 
     with order when is_map(order) <- Order.get_by_any_id(any_order_id),
          html_url when is_binary(html_url) <- get_pdf_template_url(order.order_nr, mode),
-         filename when is_binary(filename) <- get_filename_for_invoice_nr(order.invoice_nr, mode),
+         filename when is_binary(filename) <-
+           get_filename_for_order_nr(order.order_nr, order.version, mode),
          cloud_url when is_binary(cloud_url) <- generate_pdf_in_cloud(html_url, filename),
          {:ok, filename} when is_binary(filename) <- store_pdf_locally(cloud_url, filename) do
       filename
@@ -69,12 +133,43 @@ defmodule Kandis.Pdfgenerator do
   def generate_order_pdf(mode, any_order_id) when is_binary(mode) do
     any_order_id |> Kandis.KdHelpers.log("generate_order_pdf #{mode}", :info)
 
+    if Application.get_env(:kandis, :api2pdf)[:simulate_pdf] do
+      simulate_order_pdf(mode, any_order_id)
+    else
+      with order when is_map(order) <- Order.get_by_any_id(any_order_id),
+           html_url when is_binary(html_url) <- get_pdf_template_url(order.order_nr, mode),
+           filename when is_binary(filename) <-
+             get_filename_for_order_nr(order.order_nr, order.version, mode),
+           cloud_url when is_binary(cloud_url) <- generate_pdf_in_cloud(html_url, filename),
+           {:ok, filename} when is_binary(filename) <- store_pdf_locally(cloud_url, filename) do
+        filename
+      end
+    end
+  end
+
+  def simulate_order_pdf(mode, any_order_id) when is_binary(mode) do
+    any_order_id |> Kandis.KdHelpers.log("generate_order_pdf #{mode}", :info)
+
     with order when is_map(order) <- Order.get_by_any_id(any_order_id),
          html_url when is_binary(html_url) <- get_pdf_template_url(order.order_nr, mode),
-         filename when is_binary(filename) <- get_filename_for_order_nr(order.order_nr, mode),
-         cloud_url when is_binary(cloud_url) <- generate_pdf_in_cloud(html_url, filename),
-         {:ok, filename} when is_binary(filename) <- store_pdf_locally(cloud_url, filename) do
+         filename when is_binary(filename) <-
+           get_filename_for_order_nr(order.order_nr, order.version, mode),
+         {:ok, filename} when is_binary(filename) <- create_fake_file(html_url, filename) do
       filename
+    end
+  end
+
+  def create_fake_file(url, filename) do
+    if File.exists?(filename) do
+      :ok = File.rm(filename)
+    end
+
+    # {url,filename}|>IO.inspect(label: "mwuits-debug 2021-03-04_11:24 ")
+    # Download.from(url, path: filename)
+    File.write(filename, "url: #{url}")
+    |> case do
+      :ok -> {:ok, filename}
+      a -> a
     end
   end
 

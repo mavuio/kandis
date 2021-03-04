@@ -16,7 +16,9 @@ defmodule Kandis.Mock do
   def get_cart_basepath(_), do: ""
   def get_shipping_country(_), do: ""
   def apply_delivery_cost(_, _), do: %{}
-  def create_lineitem_from_cart_item(_), do: %{}
+  def create_lineitem_from_cart_item(_, _), do: %{}
+  def prepare_orderitems(val, _, _), do: val
+
   def get_pdf_template_url(_, _, _), do: ""
 
   def decrement_stock_for_sku(_, _, _), do: %{}
