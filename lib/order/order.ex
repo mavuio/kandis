@@ -4,6 +4,8 @@ defmodule Kandis.Order do
   import Kandis.KdHelpers
   require Ecto.Query
 
+  import HappyWith
+
   @invoice_nr_prefix Application.get_env(:kandis, :invoice_nr_prefix)
   @invoice_nr_testprefix Application.get_env(:kandis, :invoice_nr_testprefix)
 
@@ -383,6 +385,14 @@ defmodule Kandis.Order do
     end
   end
 
+  def remove_invoice_nr(order) when is_map(order) do
+    {order.order_nr} |> Kandis.KdHelpers.log("attempt to remove_invoice_nr of order ", :info)
+
+    order
+    |> @order_record.changeset(%{invoice_nr: nil})
+    |> @repo.update()
+  end
+
   def decrement_stock_for_order(%_{} = order) do
     order.orderitems.lineitems
     |> Enum.filter(&(&1.type == "product"))
@@ -528,6 +538,22 @@ defmodule Kandis.Order do
 
   # invoice functions
 
+  def delete_latest_invoice(invoice_nr) when is_binary(invoice_nr) do
+    happy_with do
+      @get_latest_invoice_nr latest_invoice_nr <- get_latest_invoice_nr(get_invoice_nr_prefix())
+      @ensure_invoice_nr_is_latest a when a == true <- latest_invoice_nr == invoice_nr
+      @get_order order when is_map(order) <- get_by_invoice_nr(latest_invoice_nr)
+      @get_file filename when is_binary(filename) <- get_invoice_file(order.order_nr)
+      @remove_invoice_file :ok <- File.rm(filename)
+      @remove_invoice_nr_from_order {:ok, order} <- remove_invoice_nr(order)
+      {:ok, latest_invoice_nr, order}
+    else
+      {error_tag, error_context} ->
+        error_context |> MavuUtils.log(msg = "cannot '#{error_tag}'", :error)
+        {:error, msg, error_context}
+    end
+  end
+
   def get_invoice_file(any_id, params \\ %{}) when is_binary(any_id) or is_integer(any_id),
     do: get_order_file(any_id, "invoice", params)
 
@@ -547,6 +573,7 @@ defmodule Kandis.Order do
 
   def get_order_file(any_id, mode, params) when is_binary(any_id) or is_integer(any_id) do
     order = get_by_any_id(any_id)
+
     Pdfgenerator.get_pdf_file_for_order_nr(order.order_nr, order.version, mode, params)
   end
 
@@ -563,6 +590,11 @@ defmodule Kandis.Order do
     get_latest_invoice_nr(prefix)
     |> increment_invoice_nr(prefix)
   end
+
+  def get_invoice_nr_prefix(:test), do: @invoice_nr_testprefix
+  def get_invoice_nr_prefix(:live), do: @invoice_nr_prefix
+
+  def get_invoice_nr_prefix(), do: get_invoice_nr_prefix(:live)
 
   def increment_invoice_nr(invoice_nr, prefix) do
     nr = invoice_nr |> String.trim_leading(prefix) |> to_int()

@@ -32,7 +32,7 @@ defmodule Kandis.Pdfgenerator do
   # end
 
   def get_pdf_file_for_order_nr(order_nr, version, mode, params \\ %{})
-      when is_integer(version) and is_binary(mode) do
+      when is_integer(version) and is_binary(mode) and is_map(params) do
     filename = get_filename_for_order_nr(order_nr, version, mode)
 
     case File.exists?(filename) and is_nil(params["regenerate"]) do
