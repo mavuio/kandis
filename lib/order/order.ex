@@ -43,7 +43,8 @@ defmodule Kandis.Order do
       lineitems: [],
       stats: %{},
       lang: ordercart.lang,
-      cart_id: ordercart.cart_id
+      cart_id: ordercart.cart_id,
+      ordercart: ordercart
     }
     |> add_lineitems_from_cart(ordercart, ordervars)
     |> update_stats(ordervars)
@@ -184,30 +185,104 @@ defmodule Kandis.Order do
     |> Map.new()
   end
 
+  def update_ordervars(order_nr, nil) do
+    case get_by_order_nr(order_nr) do
+      order when is_map(order) -> {:ok, order}
+      _ -> {:error, "no order found"}
+    end
+  end
+
   def update_ordervars(order_nr, new_ordervars)
       when is_map(new_ordervars) and is_binary(order_nr) do
     order = get_by_order_nr(order_nr)
 
-    updated_ordervars =
-      order.ordervars
-      |> Map.merge(new_ordervars)
+    if MavuUtils.present?(new_ordervars) do
+      updated_ordervars =
+        order.ordervars
+        |> Map.merge(new_ordervars)
 
-    store_archive_version(order.order_nr)
+      store_archive_version(order.order_nr)
 
-    changes =
-      %{ordervars: updated_ordervars}
-      |> Map.merge(get_toplevel_order_fields(order.orderitems, updated_ordervars))
+      changes =
+        %{ordervars: updated_ordervars}
+        |> Map.merge(get_toplevel_order_fields(order.orderitems, updated_ordervars))
 
-    {:ok, _updated_order} =
-      order
-      |> Ecto.Changeset.change(changes)
-      |> Ecto.Changeset.change(%{version: order.version + 1})
-      |> @repo.update()
+      {:ok, _updated_order} =
+        order
+        |> Ecto.Changeset.change(changes)
+        |> Ecto.Changeset.change(%{version: order.version + 1})
+        |> @repo.update()
 
-    msg = "updated some order-variables"
-    payload = %{new_ordervars: new_ordervars}
-    # diff: generate_diff(order, updated_order)
-    store_history_entry(order.order_nr, payload, msg)
+      msg = "updated some order-variables"
+      payload = %{new_ordervars: new_ordervars}
+      # diff: generate_diff(order, updated_order)
+      store_history_entry(order.order_nr, payload, msg)
+    else
+      {:ok, order}
+    end
+  end
+
+  def update_orderitems(order_nr, nil) do
+    case get_by_order_nr(order_nr) do
+      order when is_map(order) -> {:ok, order}
+      _ -> {:error, "no order found"}
+    end
+  end
+
+  def update_orderitems(order_nr, new_orderitems)
+      when is_map(new_orderitems) and is_binary(order_nr) do
+    order = get_by_order_nr(order_nr)
+
+    if MavuUtils.present?(new_orderitems) do
+      updated_orderitems = merge_orderitem_changes(order.orderitems, new_orderitems)
+
+      store_archive_version(order.order_nr)
+
+      changes =
+        %{orderitems: updated_orderitems}
+        |> Map.merge(get_toplevel_order_fields(updated_orderitems, order.ordervars))
+
+      {:ok, _updated_order} =
+        order
+        |> Ecto.Changeset.change(changes)
+        |> Ecto.Changeset.change(%{version: order.version + 1})
+        |> @repo.update()
+
+      msg = "updated some order-items"
+      payload = %{new_orderitems: new_orderitems}
+      # diff: generate_diff(order, updated_order)
+      store_history_entry(order.order_nr, payload, msg)
+    else
+      {:ok, order}
+    end
+  end
+
+  def merge_orderitem_changes(orderitems, orderitem_changes)
+      when is_map(orderitems) and is_map(orderitem_changes) do
+    {orderitems, orderitem_changes}
+    |> IO.inspect(label: "mwuits-debug 2021-09-24_22:04 merge_orderitem_changes")
+
+    orderitem_changes
+    |> Map.to_list()
+    |> Enum.reduce(orderitems, fn {name, values}, acc ->
+      acc |> merge_orderitem_change(name, values)
+    end)
+    |> IO.inspect(label: "mwuits-debug 2021-09-24_22:04 CHANGED VALS")
+  end
+
+  def merge_orderitem_change(orderitems, name, new_values)
+      when is_map(orderitems) and is_atom(name) and is_map(new_values) do
+    case "#{name}" do
+      "orderitems_" <> idx_str ->
+        idx = MavuUtils.to_int(idx_str)
+
+        orderitems
+        |> update_in([:lineitems, Access.at(idx)], fn item -> Map.merge(item, new_values) end)
+
+      _ ->
+        # return unchanged version
+        orderitems
+    end
   end
 
   def generate_diff(order, updated_order) do
@@ -441,6 +516,14 @@ defmodule Kandis.Order do
 
   def is_testorder?(orderitems, _ordervars) do
     Decimal.lt?(array_get(orderitems, [:stats, :total_price], 100), 5)
+  end
+
+  def is_invoiced?(order) do
+    MavuUtils.present?(order[:invoice_nr])
+  end
+
+  def is_cancelled?(order) do
+    order[:state] == "cancelled"
   end
 
   def create_new_order_nr(is_testmode \\ false) do
