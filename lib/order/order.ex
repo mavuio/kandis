@@ -47,17 +47,33 @@ defmodule Kandis.Order do
       ordercart: ordercart
     }
     |> add_lineitems_from_cart(ordercart, ordervars)
+    |> add_all_totals(ordervars)
+  end
+
+  def add_all_totals(orderitems, ordervars) when is_map(orderitems) and is_map(ordervars) do
+    orderitems
     |> update_stats(ordervars)
-    |> add_product_subtotal(t(ordercart.lang, "order.subtotal"))
+    |> add_product_subtotal(t(orderitems.lang, "order.subtotal"))
     |> @local_order.apply_delivery_cost(ordervars)
     |> update_stats(ordervars)
-    # |> pipe_when(
-    #   present?(@local_order.prepare_orderitems),
-    |> @local_order.prepare_orderitems(ordercart, ordervars)
-    |> update_stats(ordervars)
-    # )
-    |> add_total(t(ordercart.lang, "order.total"))
+    |> add_total(t(orderitems.lang, "order.total"))
     |> add_total_taxes(ordervars)
+  end
+
+  def remove_all_deleted(orderitems) do
+    orderitems
+    |> update_in([:lineitems], fn lineitems ->
+      lineitems
+      |> Enum.filter(&(&1[:deleted] == nil))
+    end)
+  end
+
+  def remove_all_totals(orderitems) do
+    orderitems
+    |> update_in([:lineitems], fn lineitems ->
+      lineitems
+      |> Enum.filter(fn item -> !String.contains?("#{item[:type]}", ["total", "addon"]) end)
+    end)
   end
 
   def add_total_taxes(%{stats: stats} = orderitems, _ordervars) do
@@ -234,7 +250,11 @@ defmodule Kandis.Order do
     order = get_by_order_nr(order_nr)
 
     if MavuUtils.present?(new_orderitems) do
-      updated_orderitems = merge_orderitem_changes(order.orderitems, new_orderitems)
+      updated_orderitems =
+        merge_orderitem_changes(order.orderitems, new_orderitems)
+        |> remove_all_deleted()
+        |> remove_all_totals()
+        |> add_all_totals(order.ordervars)
 
       store_archive_version(order.order_nr)
 
@@ -242,16 +262,18 @@ defmodule Kandis.Order do
         %{orderitems: updated_orderitems}
         |> Map.merge(get_toplevel_order_fields(updated_orderitems, order.ordervars))
 
-      {:ok, _updated_order} =
+      {:ok, updated_order} =
         order
         |> Ecto.Changeset.change(changes)
         |> Ecto.Changeset.change(%{version: order.version + 1})
         |> @repo.update()
 
+      decrement_stock_for_order(updated_order)
+
       msg = "updated some order-items"
       payload = %{new_orderitems: new_orderitems}
       # diff: generate_diff(order, updated_order)
-      store_history_entry(order.order_nr, payload, msg)
+      store_history_entry(updated_order.order_nr, payload, msg)
     else
       {:ok, order}
     end
@@ -273,8 +295,9 @@ defmodule Kandis.Order do
   def merge_orderitem_change(orderitems, name, new_values)
       when is_map(orderitems) and is_atom(name) and is_map(new_values) do
     case "#{name}" do
-      "orderitems_" <> idx_str ->
-        idx = MavuUtils.to_int(idx_str)
+      "orderitem_" <> idx_str ->
+        # incoming-index is 1-based:
+        idx = MavuUtils.to_int(idx_str) - 1
 
         orderitems
         |> update_in([:lineitems, Access.at(idx)], fn item -> Map.merge(item, new_values) end)
@@ -324,6 +347,28 @@ defmodule Kandis.Order do
     {:ok, version_record}
   end
 
+  def restore_archive_version(order_nr, version)
+      when is_integer(version) and is_binary(order_nr) do
+    order = get_by_order_nr(order_nr)
+    version_record = get_version_record(order, version)
+
+    {:ok, updated_order} =
+      order
+      |> Ecto.Changeset.change(%{
+        version: order.version + 1,
+        ordervars: version_record.ordervars,
+        orderitems: version_record.orderitems
+      })
+      |> @repo.update()
+
+    decrement_stock_for_order(updated_order)
+
+    msg = "restored from version ##{version}"
+    payload = %{source_version: version, target_version: updated_order.version}
+    # diff: generate_diff(order, updated_order)
+    store_history_entry(updated_order.order_nr, payload, msg)
+  end
+
   def erase_history(order_nr) when is_binary(order_nr) do
     order = get_by_order_nr(order_nr)
     version_record = create_version_record(order)
@@ -339,6 +384,21 @@ defmodule Kandis.Order do
     order
     |> Map.take(~w(ordervars orderitems state version)a)
     |> Map.put(:_ts, create_version_timestamp())
+  end
+
+  def get_version_record(order, version) when is_integer(version) and is_map(order) do
+    order.archive
+    |> Enum.find(&(&1["version"] == version))
+    |> case do
+      nil ->
+        nil
+
+      rec ->
+        %{
+          ordervars: rec["ordervars"] |> AtomicMap.convert(safe: true, ignore: true),
+          orderitems: rec["orderitems"] |> AtomicMap.convert(safe: true, ignore: true)
+        }
+    end
   end
 
   def create_history_record(order, payload, msg)
@@ -469,12 +529,26 @@ defmodule Kandis.Order do
   end
 
   def decrement_stock_for_order(%_{} = order) do
-    order.orderitems.lineitems
-    |> Enum.filter(&(&1.type == "product"))
-    |> Enum.map(&decrement_stock_for_sku(&1.sku, &1.amount, order))
+    sku_amounts_from_items =
+      order.orderitems.lineitems
+      |> Enum.filter(&(&1.type == "product"))
+      |> Enum.map(&%{sku: &1.sku, amount: &1.amount})
+
+    Enum.map(sku_amounts_from_items, &decrement_stock_for_sku(&1.sku, &1.amount, order))
+
+    # set remaining stock items to 0 (e.g. after editing an order)
+    skus_from_stock = get_sku_amounts_in_order(order) |> Enum.map(& &1.sku)
+    skus_from_items = sku_amounts_from_items |> Enum.map(& &1.sku)
+
+    hidden_skus = skus_from_stock -- skus_from_items
+    Enum.map(hidden_skus, &decrement_stock_for_sku(&1, 0, order))
 
     update_stock(order)
     order
+  end
+
+  def get_sku_amounts_in_order(order) do
+    @local_order.get_sku_amounts_in_order(order)
   end
 
   def decrement_stock_for_sku(sku, amount, order) do

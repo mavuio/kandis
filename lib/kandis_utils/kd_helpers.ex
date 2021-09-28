@@ -165,6 +165,13 @@ defmodule Kandis.KdHelpers do
     end
   end
 
+  def is_parsable_to_dec?(str) do
+    case to_dec(str) do
+      %Decimal{} = v -> true
+      _ -> false
+    end
+  end
+
   def convert_keys(map, keys, converter_function)
       when is_list(keys) and is_map(map) and is_function(converter_function, 1) do
     Map.to_list(map)
