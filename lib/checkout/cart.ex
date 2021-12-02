@@ -149,7 +149,7 @@ defmodule Kandis.Cart do
   end
 
   def find_item(%{items: items} = _cart_record, sku) when is_binary(sku) or is_integer(sku) do
-    items |> Enum.find(nil, fn a -> a.sku == sku end)
+    items |> Enum.find(nil, fn a -> a[:sku] == sku end)
   end
 
   def remove_item(cart_or_vid, sku) do
