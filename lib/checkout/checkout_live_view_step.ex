@@ -53,18 +53,22 @@ defmodule Kandis.Checkout.LiveViewStep do
       end
 
       def reload_current_page(socket) do
-        if @step not in ~w(review payment payment_return finished b2b_review b2b_finished) do
-          Kandis.Checkout.get_link_for_step(socket.assigns, @step)
-          |> Kandis.KdHelpers.log("reload current page (#{@step})", :debug)
-
-          {:noreply,
-           socket
-           |> Phoenix.LiveView.redirect(
-             to: Kandis.Checkout.get_link_for_step(socket.assigns, @step)
-           )}
-        else
+        if @step in ~w(review payment payment_return finished b2b_review b2b_finished) do
           {:noreply, socket}
+        else
+          reload_current_page(socket, :force)
         end
+      end
+
+      def reload_current_page(socket, :force) do
+        Kandis.Checkout.get_link_for_step(socket.assigns, @step)
+        |> Kandis.KdHelpers.log("reload current page (#{@step})", :debug)
+
+        {:noreply,
+         socket
+         |> Phoenix.LiveView.redirect(
+           to: Kandis.Checkout.get_link_for_step(socket.assigns, @step)
+         )}
       end
 
       # ignore other types of messages
