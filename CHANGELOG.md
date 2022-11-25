@@ -5,7 +5,7 @@
 ### rename fields:
 
 - orderdata ➜ orderitems  
-- orderinfo ➜ orderinfo   
+- orderinfo ➜ ordervars   
 
 exclude files in priv/
 

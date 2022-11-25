@@ -589,7 +589,8 @@ defmodule Kandis.Order do
   end
 
   def is_testorder?(orderitems, _ordervars) do
-    Decimal.lt?(array_get(orderitems, [:stats, :total_price], 100), 5)
+    # orders <=1 EUR are considered test-orders
+    Decimal.cmp(array_get(orderitems, [:stats, :total_price], "100"), "1.01") == :lt
   end
 
   def is_invoiced?(order) do
@@ -754,7 +755,7 @@ defmodule Kandis.Order do
   def get_invoice_nr_prefix(), do: get_invoice_nr_prefix(:live)
 
   def increment_invoice_nr(invoice_nr, prefix) do
-    nr = invoice_nr |> String.trim_leading(prefix) |> to_int()
+    nr = invoice_nr |> String.trim_leading(prefix) |> to_int() |> if_nil(0)
     nr = nr + 1
     "#{prefix}#{nr}"
   end
@@ -810,9 +811,10 @@ defmodule Kandis.Order do
   end
 
   def get_latest_invoice_nr(prefix) do
-    _invlike = "#{prefix}%"
+    invlike = "#{prefix}%"
 
     @order_record
+    |> Ecto.Query.where([o], like(o.invoice_nr, ^invlike))
     |> @repo.aggregate(:max, :invoice_nr)
     |> if_nil("#{prefix}#{10000}")
   end
