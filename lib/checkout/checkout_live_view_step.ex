@@ -31,7 +31,7 @@ defmodule Kandis.Checkout.LiveViewStep do
           changeset_for_this_step(incoming_data, socket.assigns)
           |> Map.put(:action, :insert)
 
-        {:noreply, Phoenix.LiveView.assign(socket, changeset: changeset)}
+        {:noreply, assign(socket, changeset: changeset)}
       end
 
       def super_handle_event("save", %{"step_data" => incoming_data}, socket) do
@@ -91,7 +91,7 @@ defmodule Kandis.Checkout.LiveViewStep do
              )}
 
           {:error, %Ecto.Changeset{} = changeset} ->
-            {:noreply, Phoenix.LiveView.assign(socket, changeset: changeset)}
+            {:noreply, assign(socket, changeset: changeset)}
         end
       end
 
