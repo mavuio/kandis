@@ -7,6 +7,7 @@ defmodule Kandis.Payment.Sofort do
   @providername "sofort"
   def create_payment_attempt({amount, curr}, order_nr, orderitems, ordervars) do
     # process sofort.com payment
+
     data = generate_payment_data({amount, curr}, order_nr, orderitems, ordervars)
 
     nil |> Kandis.KdHelpers.log("SOFORT payment data generated", :info)
@@ -109,12 +110,14 @@ defmodule Kandis.Payment.Sofort do
       |> if_nil(Application.get_env(:kandis, :sofort)[:payment_reason])
       |> if_nil("Online - Order")
 
+    amount_str = amount |> Decimal.new() |> Decimal.round(2) |> to_string()
+
     ~E(
       <?xml version="1.0" encoding="UTF-8" ?>
       <multipay>
             <project_id><%= project_id %></project_id>
             <interface_version>Kandis/Sofort0.2</interface_version>
-            <amount><%= amount %></amount>
+            <amount><%= amount_str %></amount>
             <currency_code><%= curr %></currency_code>
             <reasons>
                   <reason><%= payment_reason %></reason>
