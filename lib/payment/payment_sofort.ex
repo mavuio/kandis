@@ -8,11 +8,21 @@ defmodule Kandis.Payment.Sofort do
   def create_payment_attempt({amount, curr}, order_nr, orderitems, ordervars) do
     # process sofort.com payment
 
-    data = generate_payment_data({amount, curr}, order_nr, orderitems, ordervars)
+    {id, payment_url, data} =
+      generate_payment_data({amount, curr}, order_nr, orderitems, ordervars)
+      |> case do
+        %{"new_transaction" => %{"payment_url" => url, "transaction" => id}} = data ->
+          {id, url, data}
 
-    nil |> Kandis.KdHelpers.log("SOFORT payment data generated", :info)
-    payment_url = Kandis.KdHelpers.array_get(data, ["new_transaction", "payment_url"])
-    id = Kandis.KdHelpers.array_get(data, ["new_transaction", "transaction"])
+        _ ->
+          raise "payment url not found in Klarna-response"
+      end
+
+    %{id: id, payment_url: payment_url}
+    |> Kandis.KdHelpers.log("SOFORT payment data generated", :info)
+
+    # payment_url = Kandis.KdHelpers.array_get(data, ["new_transaction", "payment_url"])
+    # id = Kandis.KdHelpers.array_get(data, ["new_transaction", "transaction"])
 
     # data = update_or_create_intent({amount, curr}, get_stripe_payload(ordervars), nil)
 
