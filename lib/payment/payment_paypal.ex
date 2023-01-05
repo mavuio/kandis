@@ -65,7 +65,13 @@ defmodule Kandis.Payment.Paypal do
         end
 
       _ ->
-        raise "cannot parse paypal.callback-data: #{inspect(params, pretty: true)}"
+        # report but return 200 to paypal to prevent re-try
+
+        Kandis.Checkout.log_and_notify(
+          "cannot parse paypal callback",
+          System.stacktrace(),
+          params
+        )
     end
 
     Plug.Conn.send_resp(conn, 200, "data received, thx")

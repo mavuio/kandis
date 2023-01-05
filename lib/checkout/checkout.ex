@@ -83,6 +83,10 @@ defmodule Kandis.Checkout do
     @local_checkout.get_prev_step_link(context, current_step)
   end
 
+  def log_and_notify(msg, stacktrace, data) when is_binary(msg) and is_map(data) do
+    @local_checkout.log_and_notify(msg, stacktrace, data)
+  end
+
   def map_atoms_to_strings(nil), do: %{}
 
   def map_atoms_to_strings(map) when is_map(map) do
