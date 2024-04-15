@@ -121,7 +121,7 @@ defmodule Kandis.Pdfgenerator do
       fileName: "test.pdf",
       options: %{
         landscape: "false",
-        printBackground: false
+        printBackground: true
       }
     }
     |> Map.merge(addon_opts)
