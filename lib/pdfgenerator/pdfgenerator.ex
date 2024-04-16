@@ -44,7 +44,7 @@ defmodule Kandis.Pdfgenerator do
   def get_filename_for_invoice_nr(invoice_nr, mode)
       when is_binary(invoice_nr) and is_binary(mode) do
     pdf_dir = Application.get_env(:kandis, :pdf_dir)
-    filename = "#{mode}_#{invoice_nr}.pdf"
+    filename = "Spendenurkunde_BasilikaMondsee_#{invoice_nr}.pdf"
     "#{pdf_dir}/#{filename}"
   end
 
