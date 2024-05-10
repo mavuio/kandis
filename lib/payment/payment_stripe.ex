@@ -94,10 +94,6 @@ defmodule Kandis.Payment.Stripe do
       end
 
     call_api(path, body: data)
-    |> MavuUtils.log(
-      "#clred RESPOI   mwuits-debug 2024-05-10_15:54 #{elem(__ENV__.function, 0)}(): ",
-      :info
-    )
     |> case do
       {:ok, rec} ->
         rec
@@ -120,12 +116,6 @@ defmodule Kandis.Payment.Stripe do
 
   def call_api(path, opts \\ [])
       when is_binary(path) do
-    {path, opts}
-    |> MavuUtils.log(
-      "#clcyan   REQ call_stripe_api mwuits-debug 2024-05-10_15:21 #{elem(__ENV__.function, 0)}(): ",
-      :info
-    )
-
     opts = Keyword.update(opts, :body, "", fn body -> Plug.Conn.Query.encode(body) end)
 
     Req.request(
