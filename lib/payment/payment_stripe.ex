@@ -37,8 +37,9 @@ defmodule Kandis.Payment.Stripe do
     %{
       # "metadata[cart]" =>
       #   Application.get_env(:evablut, :config)[:local_url] <> "/ex/be/cart/" <> vid,
-      "metadata[visit_id]" => orderinfo[:vid],
-      "description" => orderinfo[:email]
+      "metadata" => %{visit_id: orderinfo[:vid]},
+      "description" => orderinfo[:email],
+      "automatic_payment_methods" => %{enabled: true}
     }
   end
 
@@ -86,27 +87,61 @@ defmodule Kandis.Payment.Stripe do
   end
 
   def post_intent(data, client_secret \\ nil) do
-    url =
+    path =
       case client_secret do
         secret when is_binary(secret) -> "payment_intents/#{secret}"
         _ -> "payment_intents"
       end
 
-    case Stripy.req(:post, url, data)
-         |> Kandis.KdHelpers.log("mwuits-debug 2020-03-27_21:58 ", :info) do
-      {:ok, response} ->
-        response.body
-        |> Jason.decode()
-        |> case do
-          {:ok, response_data} ->
-            response_data
+    call_api(path, body: data)
+    |> MavuUtils.log(
+      "#clred RESPOI   mwuits-debug 2024-05-10_15:54 #{elem(__ENV__.function, 0)}(): ",
+      :info
+    )
+    |> case do
+      {:ok, rec} ->
+        rec
 
-          _ ->
-            nil
-        end
-
-      _ ->
+      {:error, error_info} ->
         nil
+    end
+  end
+
+  def config(:secret_key) do
+    Application.get_env(:stripy, :secret_key)
+  end
+
+  def auth() do
+    [
+      authorization: "Bearer #{config(:secret_key)}",
+      stripe_version: "2017-06-05"
+    ]
+  end
+
+  def call_api(path, opts \\ [])
+      when is_binary(path) do
+    {path, opts}
+    |> MavuUtils.log(
+      "#clcyan   REQ call_stripe_api mwuits-debug 2024-05-10_15:21 #{elem(__ENV__.function, 0)}(): ",
+      :info
+    )
+
+    opts = Keyword.update(opts, :body, "", fn body -> Plug.Conn.Query.encode(body) end)
+
+    Req.request(
+      opts[:method] || :post,
+      path,
+      [
+        base_url: "https://api.stripe.com/v1/",
+        headers: auth() ++ [content_type: "application/x-www-form-urlencoded"],
+        headers: auth()
+      ] ++
+        opts
+    )
+    |> case do
+      {:ok, %{status: 200, body: body}} -> {:ok, body}
+      {:ok, %{status: error_status, body: body}} -> {:error, %{status: error_status, body: body}}
+      e -> e
     end
   end
 
